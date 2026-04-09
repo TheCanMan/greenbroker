@@ -9,7 +9,6 @@ type AccountType = "homeowner" | "contractor";
 
 export default function SignupPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [accountType, setAccountType] = useState<AccountType>("homeowner");
   const [email, setEmail] = useState("");
@@ -31,6 +30,7 @@ export default function SignupPage() {
       return;
     }
 
+    const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -56,6 +56,7 @@ export default function SignupPage() {
 
   async function handleGoogleSignup() {
     setLoading(true);
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

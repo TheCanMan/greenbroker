@@ -9,7 +9,6 @@ import { createClient } from "@/lib/supabase/client";
 export function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,6 +29,7 @@ export function LoginPageClient() {
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
@@ -47,6 +47,7 @@ export function LoginPageClient() {
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -66,6 +67,7 @@ export function LoginPageClient() {
 
   async function handleGoogleSignIn() {
     setLoading(true);
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
