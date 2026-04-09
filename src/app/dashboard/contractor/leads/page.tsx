@@ -17,8 +17,11 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; dot: string; badge: str
 export default async function ContractorLeadsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; page?: string };
+  // Next.js 15: searchParams is a Promise
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
+  const { status: _status, page: pageStr } = await searchParams;
+  const statusFilter = _status as LeadStatus | undefined;
   const user = await getUser();
   if (!user) redirect("/auth/login");
 
@@ -41,8 +44,7 @@ export default async function ContractorLeadsPage({
   if (!contractor) redirect("/dashboard/contractor");
 
   // Build query with optional status filter
-  const statusFilter = searchParams.status as LeadStatus | undefined;
-  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
+  const page = Math.max(1, parseInt(pageStr ?? "1", 10));
   const pageSize = 20;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
