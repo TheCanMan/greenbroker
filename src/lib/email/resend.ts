@@ -2,8 +2,8 @@ import "server-only";
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
 const FROM = process.env.EMAIL_FROM ?? "GreenBroker <noreply@greenbroker.com>";
+let resendClient: Resend | null = null;
 
 interface SendEmailOptions {
   to: string | string[];
@@ -17,6 +17,7 @@ interface SendEmailOptions {
  * Base email send function — wraps Resend with error handling + logging.
  */
 export async function sendEmail(options: SendEmailOptions) {
+  const resend = getResendClient();
   const { data, error } = await resend.emails.send({
     from: FROM,
     to: Array.isArray(options.to) ? options.to : [options.to],
@@ -217,4 +218,18 @@ function textToHtml(text: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")}</pre>`;
+}
+
+function getResendClient(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  if (!resendClient) {
+    resendClient = new Resend(apiKey);
+  }
+
+  return resendClient;
 }
