@@ -1,0 +1,49 @@
+# ─── Cloudflare local development environment variables ───────────────────────
+# Copy this file to .dev.vars and fill in real values.
+# .dev.vars is the Cloudflare equivalent of .env.local — used by:
+#   wrangler pages dev       (Cloudflare runtime preview)
+#   npm run preview:cf
+#
+# For standard Next.js dev (npm run dev), use .env.local instead.
+# Both files should never be committed — both are in .gitignore.
+#
+# Secrets set here are injected into the Cloudflare Worker runtime.
+# Public (NEXT_PUBLIC_*) vars can also go in wrangler.toml [vars] for CI.
+
+# ─── Supabase ─────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Service role key — bypasses RLS, server-side only, never expose to client
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Direct connection string — used by Prisma migrate & prisma seed (not runtime)
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.[project-ref]:[password]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
+
+# ─── Stripe ───────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Subscription price IDs (from Stripe dashboard → Products)
+STRIPE_BASIC_PRICE_ID=price_...
+STRIPE_PROFESSIONAL_PRICE_ID=price_...
+STRIPE_ELITE_PRICE_ID=price_...
+
+# ─── Resend (email) ───────────────────────────────────────────────────────────
+RESEND_API_KEY=re_...
+
+# ─── NREL PVWatts (solar estimates) ──────────────────────────────────────────
+NREL_API_KEY=your_nrel_api_key
+
+# ─── Uploadthing (file uploads) ───────────────────────────────────────────────
+NEXT_PUBLIC_UPLOADTHING_APP_ID=your_uploadthing_app_id
+UPLOADTHING_SECRET=sk_live_...
+
+# ─── Mapbox (geocoding) ───────────────────────────────────────────────────────
+NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN=pk.eyJ1...
+MAPBOX_SECRET_TOKEN=sk.eyJ1...
+
+# ─── App ─────────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_APP_URL=http://localhost:3000

@@ -1,0 +1,49 @@
+# ─── GreenBroker — Cloudflare Pages configuration ────────────────────────────
+# Deployment: npm run deploy:cf
+# Local preview: npm run preview:cf
+# Docs: https://developers.cloudflare.com/pages/framework-guides/nextjs/ssr/
+
+name = "greenbroker"
+pages_build_output_dir = ".open-next/assets"
+
+# Use 2024-09-23 or later for full nodejs_compat_v2 support
+compatibility_date = "2024-09-23"
+
+# nodejs_compat_v2 enables:
+#   - Node.js built-ins (crypto, buffer, stream, etc.)
+#   - TCP sockets (needed for Supabase Realtime WS)
+#   - fetch with full Headers/Request/Response API
+compatibility_flags = ["nodejs_compat_v2"]
+
+# ─── Public environment variables ────────────────────────────────────────────
+# These are safe to commit — they are the NEXT_PUBLIC_* vars baked into the
+# client bundle. Keep them empty here and set real values in Cloudflare Pages
+# dashboard → Settings → Environment Variables.
+#
+# SECRET variables (SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY, etc.)
+# must NEVER go in this file — set them as encrypted secrets in the dashboard.
+[vars]
+NEXT_PUBLIC_APP_URL = "https://greenbroker.pages.dev"
+# Fill these in once you have your Cloudflare Pages domain:
+# NEXT_PUBLIC_SUPABASE_URL       = "https://xxxx.supabase.co"
+# NEXT_PUBLIC_SUPABASE_ANON_KEY  = "eyJ..."
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_live_..."
+# NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN    = "pk.eyJ..."
+# NEXT_PUBLIC_UPLOADTHING_APP_ID     = "..."
+
+# ─── Observability ───────────────────────────────────────────────────────────
+[observability]
+enabled = true
+
+# ─── Build (used by Cloudflare Pages CI) ─────────────────────────────────────
+[build]
+command = "npm run build:cf"
+
+# ─── Cron Triggers (Cloudflare Workers Cron) ─────────────────────────────────
+# These replace the vercel.json cron config when deployed on Cloudflare Pages.
+# The routes /api/cron/expire-leads and /api/cron/rebate-reminders must exist.
+[triggers]
+crons = [
+  "0 2 * * *",   # /api/cron/expire-leads — 2am UTC daily
+  "0 9 * * 1",   # /api/cron/rebate-reminders — 9am UTC Monday
+]

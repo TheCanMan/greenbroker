@@ -1,0 +1,353 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// GreenBroker Prisma Schema
+// Database: PostgreSQL via Supabase
+// Run: npx prisma generate && npx prisma db push
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")      // Pooler URL (PgBouncer) for runtime
+  directUrl = env("DIRECT_URL")        // Direct URL for migrations
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  HOMEOWNER
+  CONTRACTOR
+  ADMIN
+}
+
+enum ContractorTier {
+  VERIFIED
+  PREFERRED
+  ELITE
+}
+
+enum ContractorStatus {
+  PENDING_REVIEW
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum SubscriptionTier {
+  BASIC         // $99/month — 10 leads, basic profile
+  PROFESSIONAL  // $199/month — 25 leads, preferred listing
+  ELITE         // $299/month — unlimited leads, elite badge
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  INCOMPLETE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  WON
+  LOST
+  DISPUTED
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+// Extends Supabase Auth users. userId references auth.users(id) in Supabase.
+// Created automatically via Supabase trigger on user signup.
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique // Supabase auth.users.id
+  email     String   @unique
+  role      Role     @default(HOMEOWNER)
+  firstName String?
+  lastName  String?
+  phone     String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assessments        HomeAssessment[]
+  contractor         Contractor?
+  rebateApplications RebateApplication[]
+  reviews            Review[]
+
+  @@map("profiles")
+  @@index([userId])
+  @@index([email])
+}
+
+// ─── Home Assessment ──────────────────────────────────────────────────────────
+// The core data collected during the homeowner intake flow.
+
+model HomeAssessment {
+  id        String   @id @default(cuid())
+  profileId String?  // null for anonymous guests
+
+  // Home basics
+  zip             String
+  squareFootage   Int
+  yearBuilt       Int
+  bedrooms        Int
+  bathrooms       Int?
+
+  // Energy systems
+  primaryHeatingFuel  String  // "gas" | "electric" | "oil" | "propane"
+  currentHvacType     String  // "central-ac-gas-furnace" | "heat-pump" | ...
+  hvacAge             Int?
+  currentHvacSeer     Float?
+  currentFurnaceAfue  Float?
+  hasGas              Boolean @default(true)
+  electricPanelAmps   Int?
+
+  // Roof / solar
+  roofOrientation String?  // "south" | "east-west" | "north" | "flat"
+  roofAge         Int?
+  atticRValue     Float?
+
+  // Usage (from utility bills)
+  annualKwh    Int?
+  annualTherms Int?
+
+  // Household
+  householdIncome Int?
+  amiBracket      String?  // "below-80" | "80-150" | "above-150" | "unknown"
+
+  // Extras
+  hasExistingSolar Boolean @default(false)
+  hasEv            Boolean @default(false)
+  urgency          String? // "critical" | "planning" | "exploring"
+  notes            String?
+
+  // Calculated outputs (stored at save time, recalculated on demand)
+  calcAnnualEnergyCost      Float?
+  calcSavingsPotential      Float?
+  calcAvailableRebates      Float?
+  calcSolarPaybackYears     Float?
+  calcRecommendedUpgrades   String[] // ["leds", "solar", "heat-pump", ...]
+
+  // File uploads (Uploadthing URLs)
+  photoUrls       String[]
+  utilityBillUrls String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  leads   Lead[]
+
+  @@map("home_assessments")
+  @@index([profileId])
+  @@index([zip])
+  @@index([createdAt])
+}
+
+// ─── Contractor ───────────────────────────────────────────────────────────────
+
+model Contractor {
+  id        String           @id @default(cuid())
+  profileId String           @unique
+
+  // Business info
+  businessName  String
+  tier          ContractorTier   @default(VERIFIED)
+  status        ContractorStatus @default(PENDING_REVIEW)
+  categories    String[]  // ContractorCategory values
+  serviceZips   String[]  // ZIP codes served
+
+  // Description
+  bio       String?
+  website   String?
+  logoUrl   String?
+
+  // Licenses (Maryland-specific)
+  mhicLicense       String?
+  mhicVerified      Boolean @default(false)
+  hvacLicense       String?
+  electricalLicense String?
+  plumbingLicense   String?
+  wsscLicense       String? // Montgomery County plumbers need this separately
+
+  // Certifications
+  certifications    String[]  // ["BPI", "NABCEP", "EPA608", "EPA-LEAD-RRP", ...]
+  meaParticipating  Boolean   @default(false) // Required for EmPOWER rebates
+
+  // Insurance & background
+  insuranceVerified     Boolean @default(false)
+  backgroundCheckPassed Boolean @default(false)
+  insuranceExpiry       DateTime?
+
+  // Quality metrics
+  rating            Float @default(0)
+  reviewCount       Int   @default(0)
+  completedProjects Int   @default(0)
+
+  // Stripe billing
+  stripeCustomerId    String?  @unique
+  subscriptionId      String?  @unique
+  subscriptionTier    SubscriptionTier?
+  subscriptionStatus  SubscriptionStatus?
+  subscriptionEndDate DateTime?
+  leadCredits         Int      @default(0)  // Remaining credits for lead purchases
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  leads   Lead[]
+  reviews Review[]
+
+  @@map("contractors")
+  @@index([status])
+  @@index([tier])
+  @@index([subscriptionStatus])
+}
+
+// ─── Lead ─────────────────────────────────────────────────────────────────────
+// A contractor purchases access to a homeowner's assessment.
+
+model Lead {
+  id           String     @id @default(cuid())
+  assessmentId String
+  contractorId String
+  status       LeadStatus @default(NEW)
+
+  // Pricing
+  pricePaid        Float
+  stripePaymentId  String?  // Stripe PaymentIntent ID
+
+  // Tracking
+  contactedAt DateTime?
+  quotedAt    DateTime?
+  closedAt    DateTime?
+  closedValue Float?       // Actual project value if won
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assessment HomeAssessment @relation(fields: [assessmentId], references: [id])
+  contractor Contractor     @relation(fields: [contractorId], references: [id])
+
+  @@unique([assessmentId, contractorId])  // Contractor can only buy same lead once
+  @@map("leads")
+  @@index([contractorId])
+  @@index([assessmentId])
+  @@index([status])
+}
+
+// ─── Review ───────────────────────────────────────────────────────────────────
+
+model Review {
+  id           String  @id @default(cuid())
+  contractorId String
+  profileId    String
+
+  rating   Int     // 1–5
+  title    String?
+  body     String
+  verified Boolean @default(false) // verified project completion
+
+  // What category of work?
+  category  String? // "hvac" | "solar" | "water-heater" | etc.
+  projectValue Float? // approximate project cost
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  profile    Profile    @relation(fields: [profileId], references: [id])
+
+  @@map("reviews")
+  @@index([contractorId])
+  @@index([profileId])
+}
+
+// ─── Rebate Application ───────────────────────────────────────────────────────
+// Tracks homeowner rebate applications GreenBroker helps submit.
+
+model RebateApplication {
+  id        String @id @default(cuid())
+  profileId String
+
+  programId   String  // e.g. "empower-electrification"
+  programName String
+
+  status      ApplicationStatus @default(DRAFT)
+
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  amount       Float?  // Approved amount
+
+  notes        String?
+  documentUrls String[]  // Supporting documents
+
+  // Pre-filled form data (JSON blob)
+  formData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("rebate_applications")
+  @@index([profileId])
+  @@index([status])
+}
+
+// ─── Stripe Events ────────────────────────────────────────────────────────────
+// Idempotency store for Stripe webhook events.
+
+model StripeEvent {
+  id          String   @id   // Stripe event ID (evt_...)
+  type        String
+  processedAt DateTime @default(now())
+  data        Json
+
+  @@map("stripe_events")
+}
+
+// ─── Contact Request ─────────────────────────────────────────────────────────
+// When homeowners contact contractors directly through GreenBroker.
+
+model ContactRequest {
+  id           String  @id @default(cuid())
+
+  // Homeowner info
+  name         String
+  email        String
+  phone        String?
+
+  // What they need
+  message      String
+  categories   String[]  // What type of work
+  zip          String
+
+  // Routing
+  contractorId String?  // If contacting specific contractor
+
+  // Follow-up
+  responded    Boolean  @default(false)
+  respondedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@map("contact_requests")
+  @@index([contractorId])
+  @@index([email])
+}
