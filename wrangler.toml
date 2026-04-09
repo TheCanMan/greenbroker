@@ -35,15 +35,7 @@ NEXT_PUBLIC_APP_URL = "https://greenbroker.pages.dev"
 [observability]
 enabled = true
 
-# ─── Build (used by Cloudflare Pages CI) ─────────────────────────────────────
-[build]
-command = "npm run build:cf"
-
-# ─── Cron Triggers (Cloudflare Workers Cron) ─────────────────────────────────
-# These replace the vercel.json cron config when deployed on Cloudflare Pages.
-# The routes /api/cron/expire-leads and /api/cron/rebate-reminders must exist.
-[triggers]
-crons = [
-  "0 2 * * *",   # /api/cron/expire-leads — 2am UTC daily
-  "0 9 * * 1",   # /api/cron/rebate-reminders — 9am UTC Monday
-]
+# NOTE: [build] and [triggers] sections are NOT supported in wrangler.toml for
+# Pages projects. Build command and output dir are set in the Cloudflare Pages
+# dashboard under Settings → Builds & deployments. Cron triggers for Pages are
+# configured under Settings → Functions → Cron Triggers in the dashboard.
