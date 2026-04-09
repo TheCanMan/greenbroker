@@ -13,11 +13,11 @@ const f = createUploadthing();
 export const ourFileRouter = {
   /**
    * Utility bill uploads — for homeowner intake.
-   * Max 5 files, 10MB each, PDF or image.
+   * Max 5 files, 8MB each, PDF or image.
    */
   utilityBillUploader: f({
-    pdf: { maxFileSize: "10MB", maxFileCount: 5 },
-    image: { maxFileSize: "10MB", maxFileCount: 5 },
+    pdf: { maxFileSize: "8MB", maxFileCount: 5 },
+    image: { maxFileSize: "8MB", maxFileCount: 5 },
   })
     .middleware(async ({ req }) => {
       const supabase = await createClient();
@@ -33,10 +33,10 @@ export const ourFileRouter = {
 
   /**
    * Property photos — for homeowner intake.
-   * Max 10 images, 10MB each.
+   * Max 10 images, 8MB each.
    */
   propertyPhotoUploader: f({
-    image: { maxFileSize: "10MB", maxFileCount: 10 },
+    image: { maxFileSize: "8MB", maxFileCount: 10 },
   })
     .middleware(async ({ req }) => {
       const supabase = await createClient();
@@ -87,8 +87,8 @@ export const ourFileRouter = {
    * Authenticated homeowners only.
    */
   rebateDocumentUploader: f({
-    pdf: { maxFileSize: "10MB", maxFileCount: 10 },
-    image: { maxFileSize: "10MB", maxFileCount: 10 },
+    pdf: { maxFileSize: "8MB", maxFileCount: 10 },
+    image: { maxFileSize: "8MB", maxFileCount: 10 },
   })
     .middleware(async ({ req }) => {
       const supabase = await createClient();

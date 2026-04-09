@@ -488,7 +488,6 @@ export const BATTERIES: BatteryProduct[] = [
       "Seamless solar integration via Tesla app",
       "Eligible for Maryland RCES grant: 30% up to $5,000",
     ],
-    lifespanYears: 15,
   },
   {
     id: "bat-enphase-iq10c",

@@ -31,7 +31,7 @@ export async function createClient() {
         },
       },
     }
-  );
+  ) as any;
 }
 
 /**
@@ -49,7 +49,7 @@ export function createAdminClient() {
         persistSession: false,
       },
     }
-  );
+  ) as any;
 }
 
 /**

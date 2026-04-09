@@ -292,10 +292,10 @@ export default function ContractorBillingPage() {
       <div className="card p-6">
         <h3 className="font-bold text-gray-900 mb-4">À la carte lead pricing</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {Object.entries(STRIPE_PRODUCTS.perLead).map(([key, lead]) => (
+          {Object.entries(STRIPE_PRODUCTS.leads).map(([key, lead]) => (
             <div key={key} className="bg-gray-50 rounded-xl p-4">
               <div className="text-lg font-bold text-brand-700 mb-1">
-                {formatCurrency(lead.price)}
+                {formatCurrency(lead.priceInCents / 100)}
               </div>
               <div className="text-sm font-semibold text-gray-800">{lead.name}</div>
               <div className="text-xs text-gray-500 mt-1">{lead.description}</div>

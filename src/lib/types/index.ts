@@ -15,6 +15,7 @@ export type ProductCategory =
   | "dryer"
   | "dishwasher"
   | "insulation"
+  | "window"
   | "ev-charger";
 
 export type EfficiencyTier = "good" | "better" | "best" | "most-efficient";
@@ -36,7 +37,7 @@ export interface Product {
   annualOperatingCostDollars?: number; // at PEPCO $0.217/kWh
   annualSavingsVsBaseline?: number;
   paybackYears?: number;
-  specs: Record<string, string | number>;
+  specs: Record<string, string | number | boolean>;
   highlights: string[];
   caveats?: string[];
 }

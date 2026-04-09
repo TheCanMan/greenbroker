@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
 import { AssessmentSchema } from "@/lib/validations/assessment";
 import { rateLimit, getClientIp, RATE_LIMITS } from "@/lib/ratelimit";
 import { calcPersonalizedSavings, determineAMIBracket } from "@/lib/calculations/savings";
+
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 // POST /api/assessments — save a homeowner intake assessment
 export async function POST(request: NextRequest) {
@@ -36,11 +39,12 @@ export async function POST(request: NextRequest) {
 
     let profileId: string | null = null;
     if (user) {
-      const { data: profile } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
+      const profile = (data ?? null) as Pick<ProfileRow, "id"> | null;
       profileId = profile?.id ?? null;
     }
 
@@ -134,11 +138,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
+  const { data } = await supabase
     .from("profiles")
     .select("id")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
+
+  const profile = (data ?? null) as Pick<ProfileRow, "id"> | null;
 
   if (!profile) {
     return NextResponse.json({ assessments: [] });

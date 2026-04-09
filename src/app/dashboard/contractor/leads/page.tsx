@@ -4,6 +4,20 @@ import { getUser, createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/calculations/savings";
 
 type LeadStatus = "NEW" | "CONTACTED" | "QUOTED" | "WON" | "LOST" | "EXPIRED";
+type LeadListItem = {
+  id: string;
+  status: string;
+  price_paid: number | null;
+  created_at: string;
+  home_assessment?: {
+    id?: string;
+    zip?: string;
+    square_footage?: number;
+    year_built?: number;
+    calc_annual_energy_cost?: number;
+    calc_savings_potential?: number;
+  } | null;
+};
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; dot: string; badge: string }> = {
   NEW:       { label: "New",       dot: "bg-blue-500",   badge: "bg-blue-50 text-blue-700" },
@@ -69,6 +83,7 @@ export default async function ContractorLeadsPage({
   }
 
   const { data: leads, count } = await query;
+  const leadRows = (leads ?? []) as LeadListItem[];
 
   const totalPages = count ? Math.ceil(count / pageSize) : 1;
 
@@ -78,10 +93,11 @@ export default async function ContractorLeadsPage({
     .select("status")
     .eq("contractor_id", contractor.id);
 
-  const counts = (statusCounts ?? []).reduce<Record<string, number>>((acc, l) => {
-    acc[l.status] = (acc[l.status] ?? 0) + 1;
-    return acc;
-  }, {});
+  const statusRows = (statusCounts ?? []) as Array<{ status: string }>;
+  const counts: Record<string, number> = {};
+  for (const lead of statusRows) {
+    counts[lead.status] = (counts[lead.status] ?? 0) + 1;
+  }
   const totalCount = statusCounts?.length ?? 0;
 
   const isActive = contractor.status === "ACTIVE";
@@ -161,13 +177,12 @@ export default async function ContractorLeadsPage({
       </div>
 
       {/* Leads list */}
-      {leads && leads.length > 0 ? (
+      {leadRows.length > 0 ? (
         <div className="space-y-3">
-          {leads.map((lead) => {
+          {leadRows.map((lead) => {
             const status = lead.status as LeadStatus;
             const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.NEW;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const assessment = lead.home_assessment as any;
+            const assessment = lead.home_assessment ?? null;
 
             return (
               <div

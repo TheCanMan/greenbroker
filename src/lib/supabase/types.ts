@@ -1,10 +1,3 @@
-/**
- * Supabase Database type definitions.
- * In production, generate this from your actual schema with:
- *   npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/lib/supabase/types.ts
- *
- * This is a manually-maintained version for the MVP.
- */
 export type Json =
   | string
   | number
@@ -42,12 +35,18 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
+          id?: string;
+          user_id?: string;
+          email?: string;
+          role?: "HOMEOWNER" | "CONTRACTOR" | "ADMIN";
           first_name?: string | null;
           last_name?: string | null;
           phone?: string | null;
           avatar_url?: string | null;
+          created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       home_assessments: {
         Row: {
@@ -81,13 +80,69 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["home_assessments"]["Row"],
-          "id" | "created_at" | "updated_at"
-        > & { id?: string };
-        Update: Partial<
-          Database["public"]["Tables"]["home_assessments"]["Insert"]
-        >;
+        Insert: {
+          id?: string;
+          profile_id?: string | null;
+          zip: string;
+          square_footage: number;
+          year_built: number;
+          bedrooms: number;
+          bathrooms?: number | null;
+          primary_heating_fuel: string;
+          current_hvac_type: string;
+          hvac_age?: number | null;
+          has_gas?: boolean;
+          electric_panel_amps?: number | null;
+          roof_orientation?: string | null;
+          roof_age?: number | null;
+          annual_kwh?: number | null;
+          annual_therms?: number | null;
+          household_income?: number | null;
+          ami_bracket?: string | null;
+          has_existing_solar?: boolean;
+          has_ev?: boolean;
+          urgency?: string | null;
+          notes?: string | null;
+          calc_annual_energy_cost?: number | null;
+          calc_savings_potential?: number | null;
+          calc_available_rebates?: number | null;
+          photo_urls?: string[];
+          utility_bill_urls?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string | null;
+          zip?: string;
+          square_footage?: number;
+          year_built?: number;
+          bedrooms?: number;
+          bathrooms?: number | null;
+          primary_heating_fuel?: string;
+          current_hvac_type?: string;
+          hvac_age?: number | null;
+          has_gas?: boolean;
+          electric_panel_amps?: number | null;
+          roof_orientation?: string | null;
+          roof_age?: number | null;
+          annual_kwh?: number | null;
+          annual_therms?: number | null;
+          household_income?: number | null;
+          ami_bracket?: string | null;
+          has_existing_solar?: boolean;
+          has_ev?: boolean;
+          urgency?: string | null;
+          notes?: string | null;
+          calc_annual_energy_cost?: number | null;
+          calc_savings_potential?: number | null;
+          calc_available_rebates?: number | null;
+          photo_urls?: string[];
+          utility_bill_urls?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       contractors: {
         Row: {
@@ -103,10 +158,15 @@ export interface Database {
           logo_url: string | null;
           mhic_license: string | null;
           mhic_verified: boolean;
+          hvac_license: string | null;
+          electrical_license: string | null;
+          plumbing_license: string | null;
+          wssc_license: string | null;
           certifications: string[];
           mea_participating: boolean;
           insurance_verified: boolean;
           background_check_passed: boolean;
+          insurance_expiry: string | null;
           rating: number;
           review_count: number;
           completed_projects: number;
@@ -114,15 +174,80 @@ export interface Database {
           subscription_id: string | null;
           subscription_tier: string | null;
           subscription_status: string | null;
+          subscription_end_date: string | null;
           lead_credits: number;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["contractors"]["Row"],
-          "id" | "created_at" | "updated_at"
-        > & { id?: string };
-        Update: Partial<Database["public"]["Tables"]["contractors"]["Insert"]>;
+        Insert: {
+          id?: string;
+          profile_id: string;
+          business_name: string;
+          tier?: "VERIFIED" | "PREFERRED" | "ELITE";
+          status?: "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
+          categories?: string[];
+          service_zips?: string[];
+          bio?: string | null;
+          website?: string | null;
+          logo_url?: string | null;
+          mhic_license?: string | null;
+          mhic_verified?: boolean;
+          hvac_license?: string | null;
+          electrical_license?: string | null;
+          plumbing_license?: string | null;
+          wssc_license?: string | null;
+          certifications?: string[];
+          mea_participating?: boolean;
+          insurance_verified?: boolean;
+          background_check_passed?: boolean;
+          insurance_expiry?: string | null;
+          rating?: number;
+          review_count?: number;
+          completed_projects?: number;
+          stripe_customer_id?: string | null;
+          subscription_id?: string | null;
+          subscription_tier?: string | null;
+          subscription_status?: string | null;
+          subscription_end_date?: string | null;
+          lead_credits?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          business_name?: string;
+          tier?: "VERIFIED" | "PREFERRED" | "ELITE";
+          status?: "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
+          categories?: string[];
+          service_zips?: string[];
+          bio?: string | null;
+          website?: string | null;
+          logo_url?: string | null;
+          mhic_license?: string | null;
+          mhic_verified?: boolean;
+          hvac_license?: string | null;
+          electrical_license?: string | null;
+          plumbing_license?: string | null;
+          wssc_license?: string | null;
+          certifications?: string[];
+          mea_participating?: boolean;
+          insurance_verified?: boolean;
+          background_check_passed?: boolean;
+          insurance_expiry?: string | null;
+          rating?: number;
+          review_count?: number;
+          completed_projects?: number;
+          stripe_customer_id?: string | null;
+          subscription_id?: string | null;
+          subscription_tier?: string | null;
+          subscription_status?: string | null;
+          subscription_end_date?: string | null;
+          lead_credits?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       leads: {
         Row: {
@@ -139,15 +264,61 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["leads"]["Row"],
-          "id" | "created_at" | "updated_at"
-        > & { id?: string };
-        Update: Partial<Database["public"]["Tables"]["leads"]["Insert"]>;
+        Insert: {
+          id?: string;
+          assessment_id: string;
+          contractor_id: string;
+          status?: "NEW" | "CONTACTED" | "QUOTED" | "WON" | "LOST" | "DISPUTED";
+          price_paid: number;
+          stripe_payment_id?: string | null;
+          contacted_at?: string | null;
+          quoted_at?: string | null;
+          closed_at?: string | null;
+          closed_value?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          assessment_id?: string;
+          contractor_id?: string;
+          status?: "NEW" | "CONTACTED" | "QUOTED" | "WON" | "LOST" | "DISPUTED";
+          price_paid?: number;
+          stripe_payment_id?: string | null;
+          contacted_at?: string | null;
+          quoted_at?: string | null;
+          closed_at?: string | null;
+          closed_value?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      stripe_events: {
+        Row: {
+          id: string;
+          type: string;
+          data: Json;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          type: string;
+          data: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: string;
+          data?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
       };
     };
-    Views: {};
-    Functions: {};
-    Enums: {};
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
