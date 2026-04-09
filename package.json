@@ -14,8 +14,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "build:cf": "opennextjs-cloudflare build",
-    "preview:cf": "npm run build:cf && wrangler pages dev",
-    "deploy:cf": "npm run build:cf && wrangler pages deploy",
+    "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv src/env.cloudflare.d.ts"
   },
   "dependencies": {
