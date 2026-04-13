@@ -61,14 +61,31 @@ export async function middleware(request: NextRequest) {
   }
 
   // ─── Contractor-only routes ───────────────────────────────────────────────
+  // Defense-in-depth: verify role at the edge, not just in pages.
   if (CONTRACTOR_ROUTES.some((r) => pathname.startsWith(r)) && user) {
-    // Role check happens in the page/layout via getUserProfile()
-    // Middleware just ensures authentication
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!profile || profile.role !== "CONTRACTOR") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   // ─── Admin routes ─────────────────────────────────────────────────────────
-  if (ADMIN_ROUTES.some((r) => pathname.startsWith(r)) && !user) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+  if (ADMIN_ROUTES.some((r) => pathname.startsWith(r))) {
+    if (!user) {
+      return NextResponse.redirect(new URL("/auth/login", request.url));
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!profile || profile.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   // ─── Security: block API routes from browser direct navigation ───────────
