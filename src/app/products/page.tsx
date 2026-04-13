@@ -31,7 +31,7 @@ const PRODUCT_CATEGORIES = [
     topRebate: "Up to $7,500 MSAP + RCES $5,000 + sales tax exemption",
     count: SOLAR_PANELS.length,
     topProduct: SOLAR_PANELS[0],
-    href: "/products/solar",
+    href: "/products/solar-panels",
   },
   {
     id: "battery",
@@ -41,7 +41,7 @@ const PRODUCT_CATEGORIES = [
     topRebate: "Maryland RCES: 30% up to $5,000",
     count: BATTERIES.length,
     topProduct: BATTERIES[0],
-    href: "/products/solar",
+    href: "/products/battery-storage",
   },
   {
     id: "thermostats",
@@ -51,7 +51,7 @@ const PRODUCT_CATEGORIES = [
     topRebate: "$100 PEPCO rebate — essentially free",
     count: SMART_THERMOSTATS.length,
     topProduct: SMART_THERMOSTATS[0],
-    href: "/products",
+    href: "/products/smart-thermostats",
   },
 ];
 

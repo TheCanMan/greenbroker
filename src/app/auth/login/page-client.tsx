@@ -210,7 +210,7 @@ export function LoginPageClient() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Don't have an account?{" "}
-            <Link href="/for-contractors/apply" className="text-brand-600 hover:text-brand-700 font-medium">
+            <Link href="/contractors/apply" className="text-brand-600 hover:text-brand-700 font-medium">
               Apply as a contractor
             </Link>
           </p>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NavHeader } from "@/components/nav-header";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -18,14 +19,6 @@ export const metadata: Metadata = {
   ],
 };
 
-const NAV_LINKS = [
-  { href: "/products", label: "Products" },
-  { href: "/calculator", label: "Savings Calculator" },
-  { href: "/rebates", label: "Rebates" },
-  { href: "/contractors", label: "Find Contractors" },
-  { href: "/intake", label: "Get My Plan", highlight: true },
-];
-
 export default function RootLayout({
   children,
 }: {
@@ -35,50 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {/* Navigation */}
-        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              {/* Logo */}
-              <Link href="/" className="flex items-center gap-2 group">
-                <span className="text-2xl">🌿</span>
-                <span className="text-xl font-bold text-brand-700 group-hover:text-brand-600 transition-colors">
-                  GreenBroker
-                </span>
-                <span className="hidden sm:block text-xs text-gray-400 font-medium">
-                  Rockville, MD
-                </span>
-              </Link>
-
-              {/* Desktop Nav */}
-              <nav className="hidden md:flex items-center gap-1">
-                {NAV_LINKS.map((link) =>
-                  link.highlight ? (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="ml-2 btn-primary text-sm py-2 px-4"
-                    >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  )
-                )}
-              </nav>
-
-              {/* Mobile menu button - implement with client component */}
-              <button className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                ☰
-              </button>
-            </div>
-          </div>
-        </header>
+        <NavHeader />
 
         {/* Main content */}
         <main>{children}</main>
