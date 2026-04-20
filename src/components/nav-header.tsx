@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/calculator", label: "Calculator" },
   { href: "/rebates", label: "Rebates" },
   { href: "/contractors", label: "Contractors" },
+  { href: "/commercial", label: "Commercial" },
   { href: "/intake", label: "Get My Plan", highlight: true },
 ];
 
