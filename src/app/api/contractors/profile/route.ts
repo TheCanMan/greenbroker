@@ -79,6 +79,15 @@ export async function PUT(request: NextRequest) {
     if (data.businessName !== undefined) updatePayload.business_name = data.businessName;
     if (data.categories !== undefined) updatePayload.categories = data.categories;
     if (data.serviceZips !== undefined) updatePayload.service_zips = data.serviceZips;
+    if (data.serviceArea !== undefined) {
+      const sa = data.serviceArea;
+      updatePayload.service_area_kind = sa.kind;
+      updatePayload.service_area_state_code = sa.kind === "state" ? sa.stateCode : null;
+      updatePayload.service_area_county_ids = sa.kind === "counties" ? sa.countyIds : [];
+      updatePayload.service_area_metro_id = sa.kind === "metro" ? sa.regionId : null;
+    }
+    if (data.serviceUtilityIds !== undefined)
+      updatePayload.service_utility_ids = data.serviceUtilityIds;
     if (data.bio !== undefined) updatePayload.bio = data.bio || null;
     if (data.website !== undefined) updatePayload.website = data.website || null;
     if (data.mhicLicense !== undefined) updatePayload.mhic_license = data.mhicLicense || null;

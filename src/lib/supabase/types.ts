@@ -53,6 +53,10 @@ export interface Database {
           id: string;
           profile_id: string | null;
           zip: string;
+          state: string | null;
+          county_id: string | null;
+          electric_utility_id: string | null;
+          gas_utility_id: string | null;
           square_footage: number;
           year_built: number;
           bedrooms: number;
@@ -84,6 +88,10 @@ export interface Database {
           id?: string;
           profile_id?: string | null;
           zip: string;
+          state?: string | null;
+          county_id?: string | null;
+          electric_utility_id?: string | null;
+          gas_utility_id?: string | null;
           square_footage: number;
           year_built: number;
           bedrooms: number;
@@ -115,6 +123,10 @@ export interface Database {
           id?: string;
           profile_id?: string | null;
           zip?: string;
+          state?: string | null;
+          county_id?: string | null;
+          electric_utility_id?: string | null;
+          gas_utility_id?: string | null;
           square_footage?: number;
           year_built?: number;
           bedrooms?: number;
@@ -153,6 +165,11 @@ export interface Database {
           status: "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
           categories: string[];
           service_zips: string[];
+          service_area_kind: "state" | "counties" | "metro" | null;
+          service_area_state_code: string | null;
+          service_area_county_ids: string[];
+          service_area_metro_id: string | null;
+          service_utility_ids: string[];
           bio: string | null;
           website: string | null;
           logo_url: string | null;
@@ -187,6 +204,11 @@ export interface Database {
           status?: "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
           categories?: string[];
           service_zips?: string[];
+          service_area_kind?: "state" | "counties" | "metro" | null;
+          service_area_state_code?: string | null;
+          service_area_county_ids?: string[];
+          service_area_metro_id?: string | null;
+          service_utility_ids?: string[];
           bio?: string | null;
           website?: string | null;
           logo_url?: string | null;
@@ -221,6 +243,11 @@ export interface Database {
           status?: "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "REJECTED";
           categories?: string[];
           service_zips?: string[];
+          service_area_kind?: "state" | "counties" | "metro" | null;
+          service_area_state_code?: string | null;
+          service_area_county_ids?: string[];
+          service_area_metro_id?: string | null;
+          service_utility_ids?: string[];
           bio?: string | null;
           website?: string | null;
           logo_url?: string | null;

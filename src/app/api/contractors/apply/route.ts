@@ -57,6 +57,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = ContractorApplicationSchema.parse(body);
 
+    // Flatten the structured serviceArea union into the contractors columns.
+    // serviceArea is required by the validation schema, so the discriminated
+    // switch is exhaustive.
+    const sa = data.serviceArea;
+    const serviceAreaCols = {
+      service_area_kind: sa.kind,
+      service_area_state_code: sa.kind === "state" ? sa.stateCode : null,
+      service_area_county_ids: sa.kind === "counties" ? sa.countyIds : [],
+      service_area_metro_id: sa.kind === "metro" ? sa.regionId : null,
+    };
+
     // Insert contractor record
     const { data: contractor, error } = await supabase
       .from("contractors")
@@ -64,7 +75,10 @@ export async function POST(request: NextRequest) {
         profile_id: profile.id,
         business_name: data.businessName,
         categories: data.categories,
-        service_zips: data.serviceZips,
+        ...serviceAreaCols,
+        service_utility_ids: data.serviceUtilityIds ?? [],
+        // Keep service_zips populated only for legacy intake paths.
+        service_zips: data.serviceZips ?? [],
         bio: data.bio || null,
         website: data.website || null,
         mhic_license: data.mhicLicense || null,

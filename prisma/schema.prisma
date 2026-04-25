@@ -102,6 +102,13 @@ model HomeAssessment {
 
   // Home basics
   zip             String
+  // Resolved geo (derived from zip on save via src/lib/geo/zip-lookup.ts).
+  // Nullable because legacy rows pre-date the geo refactor.
+  state           String?
+  countyId        String?
+  // Captured during intake — required for utility-scoped rebate eligibility.
+  electricUtilityId String?
+  gasUtilityId      String?
   squareFootage   Int
   yearBuilt       Int
   bedrooms        Int
@@ -155,6 +162,8 @@ model HomeAssessment {
   @@map("home_assessments")
   @@index([profileId])
   @@index([zip])
+  @@index([countyId])
+  @@index([state])
   @@index([createdAt])
 }
 
@@ -169,7 +178,23 @@ model Contractor {
   tier          ContractorTier   @default(VERIFIED)
   status        ContractorStatus @default(PENDING_REVIEW)
   categories    String[]  // ContractorCategory values
-  serviceZips   String[]  // ZIP codes served
+
+  // Service area — structured (preferred). Mirrors src/lib/geo/types.ts → ServiceArea.
+  // serviceAreaKind: "state" | "counties" | "metro" — null for legacy rows
+  // that only populate the deprecated serviceZips below.
+  serviceAreaKind        String?
+  serviceAreaStateCode   String?
+  serviceAreaCountyIds   String[] @default([])  // e.g. ["MD:montgomery", "MD:howard"]
+  serviceAreaMetroId     String?
+  // Optional: which utility territories the contractor is approved to work
+  // in. Populating this lets us filter for MEA-Participating contractors
+  // by EmPOWER utility (PEPCO/BGE/Potomac Edison/etc.).
+  serviceUtilityIds      String[] @default([])
+
+  /// @deprecated — kept for backward compat with the old ZIP-list intake.
+  /// New signups populate serviceArea* above; the search API falls back
+  /// to ZIP scanning only for rows where serviceAreaKind IS NULL.
+  serviceZips   String[]  @default([])
 
   // Description
   bio       String?
@@ -217,6 +242,11 @@ model Contractor {
   @@index([status])
   @@index([tier])
   @@index([subscriptionStatus])
+  @@index([serviceAreaKind])
+  @@index([serviceAreaStateCode])
+  // GIN index for `service_area_county_ids @> ARRAY[?]` lookups in the
+  // contractor search API. Created explicitly in 002_geo_columns.sql since
+  // Prisma doesn't model GIN indexes for text[] columns directly.
 }
 
 // ─── Lead ─────────────────────────────────────────────────────────────────────

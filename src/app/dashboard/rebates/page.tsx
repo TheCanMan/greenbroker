@@ -54,7 +54,9 @@ export default async function MyRebatesPage() {
   const { data: assessment } = profile
     ? await supabase
         .from("home_assessments")
-        .select("zip, ami_bracket")
+        .select(
+          "zip, ami_bracket, state, county_id, electric_utility_id, gas_utility_id"
+        )
         .eq("profile_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -79,8 +81,16 @@ export default async function MyRebatesPage() {
   }
   const appsByProgram = new Map(applications.map((a) => [a.program_id, a]));
 
-  // 3. Resolve user location & filter rebates.
-  const resolved = assessment?.zip ? resolveZip(assessment.zip) : null;
+  // 3. Resolve user location & filter rebates. Prefer the persisted state /
+  //    county_id columns (set at intake save-time); fall back to re-resolving
+  //    from ZIP for legacy assessments that pre-date migration 002.
+  const persistedCountyId = (assessment?.county_id ?? null) as CountyId | null;
+  const resolved =
+    persistedCountyId && assessment
+      ? { state: assessment.state as StateCode, countyId: persistedCountyId }
+      : assessment?.zip
+        ? resolveZip(assessment.zip)
+        : null;
   const county = resolved ? COUNTY_BY_ID.get(resolved.countyId) : null;
 
   let eligibleRebates: typeof REBATES = [];
@@ -89,9 +99,8 @@ export default async function MyRebatesPage() {
       state: resolved.state as StateCode,
       countyId: resolved.countyId as CountyId,
       zip: assessment.zip,
-      // Utility selection isn't yet persisted on the assessment row — this
-      // path will tighten once electric_utility_id / gas_utility_id columns
-      // land in home_assessments. For now we get state + county scoping.
+      electricUtilityId: assessment.electric_utility_id ?? undefined,
+      gasUtilityId: assessment.gas_utility_id ?? undefined,
     });
   }
 

@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/types";
 import { AssessmentSchema } from "@/lib/validations/assessment";
 import { rateLimit, getClientIp, RATE_LIMITS } from "@/lib/ratelimit";
 import { calcPersonalizedSavings, determineAMIBracket } from "@/lib/calculations/savings";
+import { resolveZip } from "@/lib/geo/zip-lookup";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -67,6 +68,12 @@ export async function POST(request: NextRequest) {
       .insert({
         profile_id: profileId,
         zip: data.zip,
+        // Resolve location at write time so reads stay fast and don't need
+        // to re-run zip-lookup on every dashboard render.
+        state: resolveZip(data.zip)?.state ?? null,
+        county_id: resolveZip(data.zip)?.countyId ?? null,
+        electric_utility_id: data.electricUtilityId ?? null,
+        gas_utility_id: data.gasUtilityId ?? null,
         square_footage: data.squareFootage,
         year_built: data.yearBuilt,
         bedrooms: data.bedrooms,
