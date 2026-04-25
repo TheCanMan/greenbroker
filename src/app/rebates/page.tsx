@@ -1,17 +1,45 @@
-import { REBATES, STACKING_SCENARIOS } from "@/lib/data/rebates";
+import { REBATES } from "@/lib/data/rebates";
 import { formatCurrency } from "@/lib/calculations/savings";
+import { resolveZip } from "@/lib/geo/zip-lookup";
+import { COUNTY_BY_ID, UTILITY_BY_ID } from "@/lib/geo/registry";
+import { findRebatesFor } from "@/lib/geo/eligibility";
+import { LocationPicker } from "@/components/geo/LocationPicker";
 
-const CATEGORIES = [
-  { label: "All Programs", value: "all" },
-  { label: "Heat Pumps", value: "heat-pump" },
-  { label: "Water Heaters", value: "water-heater" },
-  { label: "Solar", value: "solar-panel" },
-  { label: "Battery", value: "battery-storage" },
-];
+interface PageProps {
+  searchParams: Promise<{ zip?: string; electric?: string; gas?: string }>;
+}
 
-export default function RebatesPage() {
-  const availableRebates = REBATES.filter((r) => r.available);
-  const pendingRebates = REBATES.filter((r) => !r.available);
+export default async function RebatesPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const resolved = sp.zip ? resolveZip(sp.zip) : null;
+  const county = resolved ? COUNTY_BY_ID.get(resolved.countyId) : null;
+  const electricUtility = sp.electric ? UTILITY_BY_ID.get(sp.electric) : null;
+  const gasUtility = sp.gas ? UTILITY_BY_ID.get(sp.gas) : null;
+
+  // Apply location filter when we have a resolved ZIP. Otherwise fall back to
+  // showing every program in the database (catalog mode).
+  const filteredAvailable = resolved
+    ? findRebatesFor(REBATES, {
+        state: resolved.state,
+        countyId: resolved.countyId,
+        zip: sp.zip!,
+        electricUtilityId: sp.electric,
+        gasUtilityId: sp.gas,
+      })
+    : REBATES.filter((r) => r.available);
+
+  const filteredPending = resolved
+    ? findRebatesFor(REBATES, {
+        state: resolved.state,
+        countyId: resolved.countyId,
+        zip: sp.zip!,
+        electricUtilityId: sp.electric,
+        gasUtilityId: sp.gas,
+      }, { onlyAvailable: false }).filter((r) => !r.available)
+    : REBATES.filter((r) => !r.available);
+
+  const availableRebates = filteredAvailable;
+  const pendingRebates = filteredPending;
 
   const totalMaxAvailable = availableRebates.reduce((sum, r) => {
     // Avoid double-counting overlapping programs; rough max
@@ -24,9 +52,20 @@ export default function RebatesPage() {
       <div className="mb-8">
         <h1 className="section-title">Rebate & Incentive Database</h1>
         <p className="section-subtitle">
-          Rockville, MD (ZIP 20850) · Montgomery County · Accurate as of April 2026
+          {resolved && county ? (
+            <>
+              {county.name}, {resolved.state}
+              {electricUtility && <> · Electric: {electricUtility.name}</>}
+              {gasUtility && <> · Gas: {gasUtility.name}</>}
+              {" · Accurate as of April 2026"}
+            </>
+          ) : (
+            <>All programs across our coverage footprint · Accurate as of April 2026</>
+          )}
         </p>
       </div>
+
+      <LocationPicker />
 
       {/* Critical Alert */}
       <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-10">
@@ -40,8 +79,8 @@ export default function RebatesPage() {
               The <strong>One Big Beautiful Bill Act</strong> (signed July 4, 2025) terminated
               the federal home improvement credit (25C) and solar tax credit (25D) for
               installations after <strong>December 31, 2025</strong>. Many contractor websites,
-              online calculators, and news articles still reference "30% solar credit available
-              through 2032" — <strong>this is wrong</strong>. As of April 2026, the primary
+              online calculators, and news articles still reference &quot;30% solar credit available
+              through 2032&quot; — <strong>this is wrong</strong>. As of April 2026, the primary
               financial drivers for Rockville homeowners are the EmPOWER Maryland, Electrify MC,
               MSAP, and RCES programs listed below.
             </p>
@@ -115,9 +154,22 @@ export default function RebatesPage() {
       {/* Available Programs */}
       <div className="mb-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Currently Available Programs ({availableRebates.length})
+          {resolved
+            ? `Programs You Qualify For (${availableRebates.length})`
+            : `Currently Available Programs (${availableRebates.length})`}
         </h2>
-        <p className="text-gray-500 mb-6">All programs below are active and accepting applications as of April 2026.</p>
+        <p className="text-gray-500 mb-6">
+          {resolved
+            ? "Filtered to programs whose state, county, and utility-territory rules match your location."
+            : "All programs below are active and accepting applications as of April 2026."}
+        </p>
+        {resolved && availableRebates.length === 0 && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            No active rebates match your exact (county + utility) combination.
+            We may still have programs you qualify for once we add more data
+            for your area.
+          </p>
+        )}
 
         <div className="space-y-4">
           {availableRebates.map((rebate) => (

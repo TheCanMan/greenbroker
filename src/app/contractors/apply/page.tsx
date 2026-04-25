@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { ServiceAreaPicker } from "@/components/geo/ServiceAreaPicker";
+import type { ServiceArea } from "@/lib/geo/types";
 
 const CATEGORIES = [
   { value: "hvac", label: "HVAC" },
@@ -42,7 +44,7 @@ export default function ContractorApplyPage() {
   // Form state
   const [businessName, setBusinessName] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
-  const [serviceZips, setServiceZips] = useState("");
+  const [serviceArea, setServiceArea] = useState<ServiceArea | null>(null);
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [phone, setPhone] = useState("");
@@ -82,13 +84,13 @@ export default function ContractorApplyPage() {
     setLoading(true);
     setError(null);
 
-    const zipArray = serviceZips
-      .split(/[\s,]+/)
-      .map((z) => z.trim())
-      .filter((z) => /^\d{5}$/.test(z));
-
-    if (zipArray.length === 0) {
-      setError("Please enter at least one valid 5-digit ZIP code");
+    if (!serviceArea) {
+      setError("Please choose a service area");
+      setLoading(false);
+      return;
+    }
+    if (serviceArea.kind === "counties" && serviceArea.countyIds.length === 0) {
+      setError("Pick at least one county for your service area");
       setLoading(false);
       return;
     }
@@ -106,7 +108,7 @@ export default function ContractorApplyPage() {
         body: JSON.stringify({
           businessName,
           categories,
-          serviceZips: zipArray,
+          serviceArea,
           bio: bio || undefined,
           website: website || undefined,
           phone: phone || undefined,
@@ -146,7 +148,7 @@ export default function ContractorApplyPage() {
             Application Submitted!
           </h1>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Your contractor application is under review. We'll verify your
+            Your contractor application is under review. We&apos;ll verify your
             licenses and notify you once approved — typically within 2 business
             days.
           </p>
@@ -236,7 +238,7 @@ export default function ContractorApplyPage() {
               <Link href="/auth/signup" className="font-semibold underline hover:text-amber-900">
                 Sign up here
               </Link>{" "}
-              and select "Contractor" as your account type, then come back to apply.
+              and select &quot;Contractor&quot; as your account type, then come back to apply.
             </div>
           )}
 
@@ -360,23 +362,15 @@ export default function ContractorApplyPage() {
 
         {/* Service Area */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">
             Service Area *
           </h2>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            ZIP Codes You Serve
-          </label>
-          <textarea
-            value={serviceZips}
-            onChange={(e) => setServiceZips(e.target.value)}
-            rows={2}
-            required
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
-            placeholder="20850, 20851, 20852, 20854, 20855..."
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            Enter 5-digit ZIP codes separated by commas or spaces (max 50)
+          <p className="text-xs text-gray-500 mb-4">
+            Tell us where you operate. Pick whichever option matches how you
+            already think about your coverage — state-wide, a list of counties,
+            or a named metro region.
           </p>
+          <ServiceAreaPicker value={serviceArea} onChange={setServiceArea} />
         </div>
 
         {/* Licenses */}

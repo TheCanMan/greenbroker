@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { determineAMIBracket, calcPersonalizedSavings, formatCurrency } from "@/lib/calculations/savings";
 import type { HomeProfile, AMIBracket } from "@/lib/types";
+import { resolveZip } from "@/lib/geo/zip-lookup";
+import { COUNTY_BY_ID } from "@/lib/geo/registry";
+import { UtilityPicker } from "@/components/geo/UtilityPicker";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -37,6 +40,13 @@ export default function IntakePage() {
     setProfile((prev) => ({ ...prev, ...updates }));
   };
 
+  // Resolve ZIP → county on every render (cheap, prefix lookup).
+  const resolved = useMemo(
+    () => (profile.zip && profile.zip.length === 5 ? resolveZip(profile.zip) : null),
+    [profile.zip]
+  );
+  const county = resolved ? COUNTY_BY_ID.get(resolved.countyId) : null;
+
   const handleFinish = () => {
     if (profile.householdIncome) {
       const amiBracket = determineAMIBracket(profile.householdIncome);
@@ -55,7 +65,7 @@ export default function IntakePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Your Personalized Energy Plan</h1>
         <p className="text-gray-600 mt-2">
-          Answer a few questions about your home. We'll calculate your exact savings potential
+          Answer a few questions about your home. We&apos;ll calculate your exact savings potential
           and rebate eligibility — takes about 5 minutes.
         </p>
       </div>
@@ -122,6 +132,29 @@ export default function IntakePage() {
                     placeholder="1985"
                   />
                 </div>
+              </div>
+
+              {/* Utility-territory picker — required for utility-scoped rebates */}
+              <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
+                <p className="text-sm font-semibold text-gray-700 mb-1">
+                  Who delivers your power?
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  {county
+                    ? `Detected ${county.name}, ${resolved?.state}. EmPOWER and similar rebates are utility-specific — pick yours so we only show what you actually qualify for.`
+                    : "Enter a 5-digit ZIP above to load utility options."}
+                </p>
+                <UtilityPicker
+                  countyId={resolved?.countyId ?? null}
+                  electricUtilityId={profile.electricUtilityId}
+                  gasUtilityId={profile.gasUtilityId}
+                  onChange={(next) =>
+                    update({
+                      electricUtilityId: next.electricUtilityId,
+                      gasUtilityId: next.gasUtilityId,
+                    })
+                  }
+                />
               </div>
 
               <div>
