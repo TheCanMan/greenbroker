@@ -4,13 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 
 const NAV_LINKS = [
-  { href: "/appliances", label: "Appliances" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/calculator", label: "Calculator" },
+  { href: "/plan", label: "My Energy Plan" },
   { href: "/rebates", label: "Rebates" },
-  { href: "/contractors", label: "Contractors" },
+  { href: "/contractor-quotes", label: "Contractor Quotes" },
+  { href: "/products", label: "Product Rankings" },
+  { href: "/energy-supplier-compare", label: "Supplier Compare" },
   { href: "/commercial", label: "Commercial" },
-  { href: "/intake", label: "Get My Plan", highlight: true },
+  { href: "/intake", label: "Check My Rebates", highlight: true },
 ];
 
 export function NavHeader() {
@@ -27,7 +27,7 @@ export function NavHeader() {
               GreenBroker
             </span>
             <span className="hidden sm:block text-xs text-gray-400 font-medium">
-              Rockville, MD
+              Montgomery County, MD
             </span>
           </Link>
 

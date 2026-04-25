@@ -73,9 +73,9 @@ export default function ProductsPage() {
           <div className="text-sm text-blue-800">
             <strong>Methodology:</strong> Rankings draw from EnergyStar.gov product databases,
             DOE test procedures, AHRI-certified performance data, and manufacturer specifications.
-            All model numbers are real, commercially available products. Energy Star "Most Efficient"
+            All model numbers are real, commercially available products. Energy Star &quot;Most Efficient&quot;
             designation identifies the top tier within each certified category. Annual operating costs
-            use PEPCO's blended rate of $0.217/kWh and Washington Gas all-in rate of $1.40/therm.
+            use PEPCO&apos;s blended rate of $0.217/kWh and Washington Gas all-in rate of $1.40/therm.
           </div>
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function ProductsPage() {
 
       {/* Note on ROI Sequencing */}
       <div className="mt-12 bg-gray-50 rounded-3xl p-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Optimal upgrade sequence for Rockville</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Optimal upgrade sequence for Montgomery County</h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {[
             { step: "1", label: "LEDs", detail: "2.5 month payback", icon: "💡" },

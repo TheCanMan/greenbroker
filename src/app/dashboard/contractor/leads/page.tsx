@@ -110,7 +110,7 @@ export default async function ContractorLeadsPage({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Rockville homeowners ready to upgrade their homes
+            Montgomery County homeowners ready to upgrade their homes
           </p>
         </div>
         <div className="text-right">
@@ -125,7 +125,7 @@ export default async function ContractorLeadsPage({
           <div className="text-3xl mb-3">🎯</div>
           <h2 className="font-bold text-gray-900 mb-2">Subscribe to unlock leads</h2>
           <p className="text-gray-500 text-sm mb-4">
-            Choose a plan to start receiving qualified homeowner leads in Rockville, MD.
+            Choose a plan to start receiving qualified homeowner leads in Montgomery County, MD.
           </p>
           <Link href="/dashboard/contractor/billing" className="btn-primary text-sm py-2 px-5">
             View plans →

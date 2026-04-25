@@ -84,7 +84,7 @@ export default async function RebatesPage({ searchParams }: PageProps) {
               installations after <strong>December 31, 2025</strong>. Many contractor websites,
               online calculators, and news articles still reference &quot;30% solar credit available
               through 2032&quot; — <strong>this is wrong</strong>. As of April 2026, the primary
-              financial drivers for Rockville homeowners are the EmPOWER Maryland, Electrify MC,
+              financial drivers for Montgomery County homeowners are the EmPOWER Maryland, Electrify MC,
               MSAP, and RCES programs listed below.
             </p>
           </div>

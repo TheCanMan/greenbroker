@@ -175,7 +175,7 @@ export default function HeatPumpsPage() {
           vs. $0.0228/kBTU for a heat pump at HSPF2 9.5). Energy savings come primarily from dramatically
           improved cooling efficiency. <strong>The strongest financial case for heat pumps:</strong> (1) timed
           with existing system end-of-life replacement, (2) combined with solar to reduce effective electric
-          rate, or (3) after Washington Gas's pending $82.5M rate increase is approved. CO₂ reduction is
+          rate, or (3) after Washington Gas&apos;s pending $82.5M rate increase is approved. CO₂ reduction is
           significant regardless.
         </p>
       </div>

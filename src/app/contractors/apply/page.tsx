@@ -168,7 +168,7 @@ export default function ContractorApplyPage() {
           <h1 className="section-title">Apply as a Contractor</h1>
           <p className="section-subtitle">
             Join GreenBroker and connect with homeowners seeking energy efficiency
-            solutions in Rockville, MD
+            solutions in Montgomery County, MD
           </p>
         </div>
 

@@ -35,7 +35,7 @@ export default async function ContractorDashboardPage() {
         </h1>
         <p className="text-gray-500 mb-8">
           Set up your GreenBroker contractor profile to start receiving qualified leads
-          from Rockville homeowners ready to upgrade.
+          from Montgomery County homeowners ready to upgrade.
         </p>
         <Link href="/contractors/apply" className="btn-primary">
           Set Up My Profile →
@@ -73,8 +73,8 @@ export default async function ContractorDashboardPage() {
           <div>
             <strong className="text-amber-800">Account under review</strong>
             <p className="text-amber-700 text-sm mt-0.5">
-              We're verifying your licenses and insurance. This usually takes 1–2 business days.
-              You'll receive an email when approved.
+              We&apos;re verifying your licenses and insurance. This usually takes 1–2 business days.
+              You&apos;ll receive an email when approved.
             </p>
           </div>
         </div>

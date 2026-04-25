@@ -4,12 +4,13 @@ import { NavHeader } from "@/components/nav-header";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "GreenBroker — Energy Efficiency for Rockville, MD",
+  title: "GreenBroker — TurboTax for home energy savings",
   description:
-    "Find the best energy-efficient products, compare contractors, and maximize rebates for your Rockville, MD home. Solar, heat pumps, insulation, and more.",
+    "Find every rebate you qualify for, calculate net project cost, compare safe energy supplier options, and prepare rebate paperwork from one simple intake form. Currently piloting in Montgomery County, MD.",
   keywords: [
     "energy efficiency",
-    "Rockville MD",
+    "Montgomery County",
+    "Maryland",
     "EmPOWER Maryland",
     "heat pump",
     "solar panels",
@@ -43,11 +44,13 @@ export default function RootLayout({
                   <span className="text-xl font-bold text-white">GreenBroker</span>
                 </div>
                 <p className="text-sm leading-relaxed max-w-sm">
-                  Combining Labdoor-style product rankings with an Angi-style contractor
-                  marketplace for residential energy efficiency in Rockville, MD (ZIP 20850).
+                  TurboTax for home energy savings — find your rebates, calculate net cost,
+                  and prepare paperwork from one simple form. Currently piloting in
+                  Montgomery County, MD.
                 </p>
                 <p className="text-xs mt-4 text-gray-500">
-                  Utility rates accurate as of April 2026. Incentive programs subject to change.
+                  Rebate rules change. Always verify availability and eligibility before
+                  purchase or installation.
                 </p>
               </div>
 
@@ -130,8 +133,9 @@ export default function RootLayout({
 
             <div className="border-t border-gray-800 mt-8 pt-8 text-xs text-gray-500">
               <p>
-                © 2026 GreenBroker. MVP — Rockville, MD (ZIP 20850) pilot. Not affiliated with PEPCO,
-                Montgomery County, or MEA. Always verify rebate availability before committing to a project.
+                © 2026 GreenBroker. MVP — Montgomery County, MD pilot. Not affiliated with
+                PEPCO, Montgomery County, or MEA. Always verify rebate availability before
+                committing to a project.
               </p>
             </div>
           </div>

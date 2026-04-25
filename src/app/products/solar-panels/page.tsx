@@ -79,7 +79,7 @@ function SolarPanelCard({ product, rank }: { product: SolarPanelProduct; rank: n
       <div className="bg-gray-50 rounded-xl p-4 mb-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-gray-500">Installed $/W (Rockville)</div>
+            <div className="text-xs text-gray-500">Installed $/W (Montgomery County)</div>
             <div className="font-bold text-gray-900">${product.pricePerWatt.toFixed(2)}/W</div>
           </div>
           <div>
@@ -131,7 +131,7 @@ export default function SolarPanelsPage() {
         <div className="text-sm text-gray-500 mb-2">Products / Solar Panels</div>
         <h1 className="section-title">Solar Panel Rankings</h1>
         <p className="section-subtitle">
-          Ranked by efficiency. All pricing is installed $/W for Rockville, MD with 4.5 peak sun hours/day.
+          Ranked by efficiency. All pricing is installed $/W for Montgomery County, MD with 4.5 peak sun hours/day.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function SolarPanelsPage() {
           </div>
         </div>
         <div className="mt-3 text-xs text-blue-600">
-          At Rockville's 4.5 peak sun hours/day and 1,300 kWh/kW/year yield, all three panels produce 560–572 kWh/year per 440W.
+          At Montgomery County&apos;s 4.5 peak sun hours/day and 1,300 kWh/kW/year yield, all three panels produce 560–572 kWh/year per 440W.
           Premium efficiency matters most when roof space is limited.
         </div>
       </div>

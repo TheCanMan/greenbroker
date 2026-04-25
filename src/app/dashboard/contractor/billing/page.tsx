@@ -282,7 +282,7 @@ export default function ContractorBillingPage() {
             <span className="text-2xl">🎯</span>
             <div>
               <div className="font-semibold text-gray-800 mb-0.5">Quality guarantee</div>
-              Every lead is a real Rockville homeowner who has completed a full energy intake.
+              Every lead is a real Montgomery County homeowner who has completed a full energy intake.
             </div>
           </div>
         </div>

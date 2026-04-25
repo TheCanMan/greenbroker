@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { determineAMIBracket, calcPersonalizedSavings, formatCurrency } from "@/lib/calculations/savings";
 import type { HomeProfile, AMIBracket } from "@/lib/types";
@@ -19,7 +20,7 @@ const STEPS = [
 ];
 
 const DEFAULT_PROFILE: Partial<HomeProfile> = {
-  zip: "20850",
+  zip: "",
   squareFootage: 2000,
   yearBuilt: 1985,
   bedrooms: 3,
@@ -31,9 +32,19 @@ const DEFAULT_PROFILE: Partial<HomeProfile> = {
   currentHvacType: "central-ac-gas-furnace",
 };
 
-export default function IntakePage() {
+function IntakeBody() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>(1);
   const [profile, setProfile] = useState<Partial<HomeProfile>>(DEFAULT_PROFILE);
+
+  // Pre-fill ZIP from ?zip=NNNNN if the user came in from the homepage form.
+  useEffect(() => {
+    const z = searchParams.get("zip");
+    if (z && /^\d{5}$/.test(z)) {
+      setProfile((prev) => ({ ...prev, zip: z }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [results, setResults] = useState<ReturnType<typeof calcPersonalizedSavings> | null>(null);
 
   const update = (updates: Partial<HomeProfile>) => {
@@ -116,10 +127,12 @@ export default function IntakePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">ZIP Code</label>
                   <input
                     type="text"
-                    value={profile.zip || "20850"}
-                    onChange={(e) => update({ zip: e.target.value })}
+                    inputMode="numeric"
+                    maxLength={5}
+                    value={profile.zip || ""}
+                    onChange={(e) => update({ zip: e.target.value.replace(/\D/g, "").slice(0, 5) })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="20850"
+                    placeholder="ZIP code"
                   />
                 </div>
                 <div>
@@ -477,7 +490,7 @@ export default function IntakePage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Plan</h2>
               <p className="text-gray-500">
                 Based on your {profile.squareFootage?.toLocaleString()} sq ft,{" "}
-                {profile.yearBuilt} home in Rockville, MD
+                {profile.yearBuilt} home{county ? ` in ${county.name}` : ""}
               </p>
             </div>
 
@@ -621,5 +634,13 @@ export default function IntakePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function IntakePage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto px-4 py-12">Loading…</div>}>
+      <IntakeBody />
+    </Suspense>
   );
 }

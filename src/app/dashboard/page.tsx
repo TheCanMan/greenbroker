@@ -40,7 +40,7 @@ export default async function HomeownerDashboardPage() {
           Welcome back, {firstName} 👋
         </h1>
         <p className="text-gray-500 mt-1">
-          Your energy efficiency dashboard — Rockville, MD
+          Your home energy savings dashboard
         </p>
       </div>
 

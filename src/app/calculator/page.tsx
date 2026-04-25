@@ -42,7 +42,7 @@ export default function CalculatorPage() {
       <div className="mb-10">
         <h1 className="section-title">Savings Calculator</h1>
         <p className="section-subtitle">
-          Real numbers for Rockville, MD. PEPCO ${UTILITY_RATES.electric.blendedPerKwh}/kWh ·
+          Real numbers for Montgomery County, MD. PEPCO ${UTILITY_RATES.electric.blendedPerKwh}/kWh ·
           Washington Gas ${UTILITY_RATES.gas.allInPerTherm}/therm · April 2026
         </p>
       </div>
@@ -277,7 +277,7 @@ export default function CalculatorPage() {
 
               <div className="bg-brand-50 rounded-xl p-4 space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Location assumptions</div>
-                <div className="text-sm text-gray-600">📍 Rockville, MD · 4.5 peak sun hours/day</div>
+                <div className="text-sm text-gray-600">📍 Montgomery County, MD · 4.5 peak sun hours/day</div>
                 <div className="text-sm text-gray-600">⚡ PEPCO net metering: 1:1 retail rate</div>
                 <div className="text-sm text-gray-600">📈 Certified SREC price: $70/credit</div>
                 <div className="text-sm text-gray-600">🚫 Federal 25D credit: eliminated 1/1/2026</div>

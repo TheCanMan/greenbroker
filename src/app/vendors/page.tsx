@@ -4,7 +4,7 @@ import { VendorsClient } from "./vendors-client";
 export const metadata = {
   title: "Vendor Directory | GreenBroker",
   description:
-    "Browse verified retailers and distributors of energy-efficient appliances in the Rockville, MD area.",
+    "Browse verified retailers and distributors of energy-efficient appliances in the Montgomery County, MD area.",
 };
 
 export default function VendorsPage() {

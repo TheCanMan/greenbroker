@@ -146,7 +146,7 @@ export default function BatteryStoragePage() {
             <strong>Time-of-Use (TOU) Optimization</strong><br />
             <span className="text-blue-600">
               Store cheap solar energy during peak production (10am–2pm) and discharge during evening peak (5pm–9pm) when
-              PEPCO's TOU rates spike to $0.35/kWh+. Battery arbitrage can save $400–$800/year vs. selling excess solar at net
+              PEPCO&apos;s TOU rates spike to $0.35/kWh+. Battery arbitrage can save $400–$800/year vs. selling excess solar at net
               meter rates.
             </span>
           </div>

@@ -31,7 +31,7 @@ export default async function ContractorProfilePage() {
             Complete Your Application
           </h1>
           <p className="text-gray-600 mb-6">
-            You haven't submitted a contractor application yet. Complete your
+            You haven&apos;t submitted a contractor application yet. Complete your
             application to set up your profile.
           </p>
           <a
