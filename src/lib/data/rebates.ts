@@ -8,6 +8,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Rebate } from "@/lib/types";
+import type { UserLocation } from "@/lib/geo/types";
+import { findRebatesFor } from "@/lib/geo/eligibility";
 
 export const REBATES: Rebate[] = [
   // ─── EmPOWER Maryland (PEPCO) ─────────────────────────────────────────────
@@ -36,6 +38,10 @@ export const REBATES: Rebate[] = [
     applicableCategories: ["heat-pump", "insulation"],
     notes:
       "This is the single most valuable incentive for heat pump conversion in Rockville. Stack with Electrify MC for maximum savings.",
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
   {
     id: "empower-non-electrification",
@@ -52,6 +58,10 @@ export const REBATES: Rebate[] = [
       "For insulation, air sealing, duct sealing, and other non-electrification efficiency improvements. Up to $10,000.",
     url: "https://www.pepco.com/MyAccount/MyBillUsage/Pages/PEPCOEmPOWER.aspx",
     applicableCategories: ["insulation", "window"],
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
   {
     id: "empower-make-ready",
@@ -67,6 +77,10 @@ export const REBATES: Rebate[] = [
       "Covers ductwork, wiring, and electrical panel upgrades needed to enable heat pump installation. Up to $3,000 / 75% of cost.",
     url: "https://www.pepco.com/MyAccount/MyBillUsage/Pages/PEPCOEmPOWER.aspx",
     applicableCategories: ["heat-pump"],
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
   {
     id: "empower-hpwh",
@@ -81,6 +95,10 @@ export const REBATES: Rebate[] = [
       "Point-of-sale rebate for heat pump water heater installation. $1,600 — the single largest appliance rebate available.",
     url: "https://www.pepco.com/MyAccount/MyBillUsage/Pages/PEPCOEmPOWER.aspx",
     applicableCategories: ["water-heater"],
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
   {
     id: "empower-thermostat",
@@ -95,6 +113,10 @@ export const REBATES: Rebate[] = [
       "Instant rebate for qualifying smart thermostat (ecobee or Nest). At $100 off, the ecobee Premium is effectively free after rebate.",
     url: "https://www.pepco.com/MyAccount/MyBillUsage/Pages/PEPCOEmPOWER.aspx",
     applicableCategories: ["smart-thermostat"],
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
   {
     id: "empower-recycling",
@@ -109,6 +131,10 @@ export const REBATES: Rebate[] = [
       "Free pickup and $50 rebate for retiring an old, working refrigerator or freezer. Secondary units in garages/basements qualify.",
     url: "https://www.pepco.com/MyAccount/MyBillUsage/Pages/PEPCOEmPOWER.aspx",
     applicableCategories: ["refrigerator"],
+    scopes: [
+      { kind: "state", stateCode: "MD" },
+      { kind: "utility", utilityIds: ["pepco-md"] },
+    ],
   },
 
   // ─── Montgomery County: Electrify MC ─────────────────────────────────────
@@ -132,6 +158,7 @@ export const REBATES: Rebate[] = [
     url: "https://www.electrifymc.com",
     applicableCategories: ["heat-pump"],
     notes: "Elysian Energy is the sole contractor for Electrify MC as of April 2026.",
+    scopes: [{ kind: "county", countyIds: ["MD:montgomery"] }],
   },
   {
     id: "electrify-mc-hpwh",
@@ -147,6 +174,7 @@ export const REBATES: Rebate[] = [
       "$500 for HPWH installation (+$1,000 bonus if replacing a gas furnace that shares a flue). Stacks with PEPCO's $1,600 HPWH rebate for up to $2,100 combined.",
     url: "https://www.electrifymc.com",
     applicableCategories: ["water-heater"],
+    scopes: [{ kind: "county", countyIds: ["MD:montgomery"] }],
   },
   {
     id: "electrify-mc-stove",
@@ -160,6 +188,7 @@ export const REBATES: Rebate[] = [
     description: "$500 for switching from gas to induction or electric cooking.",
     url: "https://www.electrifymc.com",
     applicableCategories: ["smart-thermostat"], // Using as placeholder
+    scopes: [{ kind: "county", countyIds: ["MD:montgomery"] }],
   },
   {
     id: "electrify-mc-dryer",
@@ -173,6 +202,7 @@ export const REBATES: Rebate[] = [
     description: "$250 for heat pump dryer installation (switching from gas dryer).",
     url: "https://www.electrifymc.com",
     applicableCategories: ["dryer"],
+    scopes: [{ kind: "county", countyIds: ["MD:montgomery"] }],
   },
 
   // ─── Maryland State Programs ──────────────────────────────────────────────
@@ -200,6 +230,7 @@ export const REBATES: Rebate[] = [
     applicableCategories: ["solar-panel"],
     notes:
       "CRITICAL: Apply before installation begins. First-come, first-served — funds run out. FY26 deadline June 5, 2026.",
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "rces-battery",
@@ -221,6 +252,7 @@ export const REBATES: Rebate[] = [
     url: "https://energy.maryland.gov/residential/Pages/storage.aspx",
     applicableCategories: ["battery-storage"],
     notes: "Limited $2M budget — first-come, first-served. Apply immediately.",
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "maryland-srec",
@@ -242,6 +274,7 @@ export const REBATES: Rebate[] = [
     applicableCategories: ["solar-panel"],
     notes:
       "Requires PSC certification + PJM-GATS registration. GreenBroker can help automate this process.",
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "green-bank-solar-loan",
@@ -263,6 +296,9 @@ export const REBATES: Rebate[] = [
       "Subsidized solar loans at 2.99% interest for first 15 years through Climate First Bank. Can bundle solar + battery + roof replacement. For households earning ≤$163,900.",
     url: "https://www.mcgreenbank.org",
     applicableCategories: ["solar-panel", "battery-storage"],
+    // The Green Bank's loan program is administered for Montgomery County
+    // residents; income limits + program rules are county-specific.
+    scopes: [{ kind: "county", countyIds: ["MD:montgomery"] }],
   },
   {
     id: "switch-together-discount",
@@ -282,6 +318,13 @@ export const REBATES: Rebate[] = [
       "15–25% group purchase discount on solar and battery installations through collective bargaining. Typical savings: $5,000–$8,000 on a standard residential install.",
     url: "https://www.solarswitchtogether.org",
     applicableCategories: ["solar-panel", "battery-storage"],
+    // Capital Area program covers the DMV metro counties.
+    scopes: [
+      {
+        kind: "county",
+        countyIds: ["MD:montgomery", "MD:prince-georges", "MD:frederick", "DC:dc"],
+      },
+    ],
   },
 
   // ─── PENDING / NOT YET AVAILABLE ─────────────────────────────────────────
@@ -301,6 +344,7 @@ export const REBATES: Rebate[] = [
     applicableCategories: ["heat-pump"],
     notes:
       "When available, income-qualified households could stack this with EmPOWER for near-zero cost heat pump installation.",
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "heehra-hpwh",
@@ -316,6 +360,7 @@ export const REBATES: Rebate[] = [
       "Up to $1,750 for HPWH installation under HEEHRA. NOT YET AVAILABLE in Maryland.",
     url: "https://energy.maryland.gov/residential/Pages/hear.aspx",
     applicableCategories: ["water-heater"],
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "heehra-panel",
@@ -331,6 +376,7 @@ export const REBATES: Rebate[] = [
       "Up to $4,000 for electrical panel upgrades under HEEHRA. NOT YET AVAILABLE in Maryland.",
     url: "https://energy.maryland.gov/residential/Pages/hear.aspx",
     applicableCategories: ["heat-pump"],
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
   {
     id: "homes-rebate",
@@ -346,6 +392,7 @@ export const REBATES: Rebate[] = [
       "IRA HOMES rebate: $2,000–$8,000 for whole-home energy savings of 20–35%+ (doubled for low-income). NOT YET AVAILABLE in Maryland.",
     url: "https://energy.maryland.gov/residential/Pages/homes.aspx",
     applicableCategories: ["insulation", "heat-pump", "window"],
+    scopes: [{ kind: "state", stateCode: "MD" }],
   },
 ];
 
@@ -361,6 +408,17 @@ export function getRebatesByCategory(category: string): Rebate[] {
 
 export function getRebateById(id: string): Rebate | undefined {
   return REBATES.find((r) => r.id === id);
+}
+
+/**
+ * Returns rebates the user is geographically eligible for, given their resolved
+ * (state, county, utility) location. Filters to `available: true` by default.
+ */
+export function getRebatesForLocation(
+  location: UserLocation,
+  opts: { onlyAvailable?: boolean } = { onlyAvailable: true }
+): Rebate[] {
+  return findRebatesFor(REBATES, location, opts);
 }
 
 export function getMaxStackableRebates(

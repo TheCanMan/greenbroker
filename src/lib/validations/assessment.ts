@@ -1,12 +1,24 @@
 import { z } from "zod";
+import { isSupportedZip } from "@/lib/geo/zip-lookup";
 
 export const AssessmentSchema = z.object({
   zip: z
     .string()
     .regex(/^\d{5}$/, "ZIP code must be 5 digits")
-    .refine((zip) => zip === "20850" || zip.startsWith("208"), {
-      message: "GreenBroker currently serves Montgomery County, MD (ZIP codes starting with 208)",
+    .refine(isSupportedZip, {
+      message:
+        "GreenBroker doesn't yet serve this ZIP. We'll add your area as we expand state-by-state.",
     }),
+
+  /**
+   * Utility-territory selection. Required for any rebate that scopes to a
+   * specific utility (e.g. PEPCO EmPOWER). The intake form should populate
+   * the dropdown options with `electricUtilitiesForCounty(countyId)` /
+   * `gasUtilitiesForCounty(countyId)` after the ZIP resolves.
+   */
+  electricUtilityId: z.string().min(1).optional(),
+  gasUtilityId: z.string().min(1).optional(),
+
   squareFootage: z
     .number()
     .int()

@@ -27,6 +27,28 @@ const VALID_CERTIFICATIONS = [
   "Carrier-Factory-Auth",
 ] as const;
 
+/**
+ * Structured contractor service area. Mirrors `ServiceArea` in src/lib/geo/types.ts
+ * but is duplicated here to keep the validation layer self-contained.
+ */
+const ServiceAreaSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("state"),
+    stateCode: z.string().regex(/^[A-Z]{2}$/, "State code must be 2 uppercase letters"),
+  }),
+  z.object({
+    kind: z.literal("counties"),
+    countyIds: z
+      .array(z.string().regex(/^[A-Z]{2}:[a-z0-9-]+$/, "Invalid county id (expected format: MD:montgomery)"))
+      .min(1, "Pick at least one county")
+      .max(40, "Too many counties — consider a state-wide or metro service area"),
+  }),
+  z.object({
+    kind: z.literal("metro"),
+    regionId: z.string().min(1, "Pick a metro region"),
+  }),
+]);
+
 export const ContractorApplicationSchema = z.object({
   businessName: z
     .string()
@@ -36,10 +58,22 @@ export const ContractorApplicationSchema = z.object({
     .array(z.enum(VALID_CATEGORIES))
     .min(1, "Select at least one category")
     .max(8, "Too many categories"),
+
+  /** Where this contractor will perform work — replaces serviceZips. */
+  serviceArea: ServiceAreaSchema,
+
+  /**
+   * Optional list of utility territories the contractor is approved to work in.
+   * Required to flag as MEA Participating for EmPOWER programs (utility-specific).
+   */
+  serviceUtilityIds: z.array(z.string().min(1)).max(10).optional().default([]),
+
+  /** @deprecated — accepted only to import legacy data. New flows should use serviceArea. */
   serviceZips: z
     .array(z.string().regex(/^\d{5}$/))
-    .min(1, "Add at least one service ZIP code")
-    .max(50, "Too many ZIP codes"),
+    .max(50)
+    .optional(),
+
   bio: z.string().max(1000).optional(),
   website: z.string().url("Invalid website URL").optional().or(z.literal("")),
 
@@ -71,7 +105,19 @@ export type ContractorUpdateInput = z.infer<typeof ContractorUpdateSchema>;
 
 export const ContractorQuerySchema = z.object({
   category: z.enum(VALID_CATEGORIES).optional(),
+
+  /**
+   * Either filter by ZIP (legacy) or by resolved location (preferred). When
+   * `countyId` is supplied, the API should match contractors whose service
+   * area covers that county via `serviceAreaCovers()`.
+   */
   zip: z.string().regex(/^\d{5}$/).optional(),
+  countyId: z
+    .string()
+    .regex(/^[A-Z]{2}:[a-z0-9-]+$/)
+    .optional(),
+  utilityId: z.string().min(1).optional(),
+
   tier: z.enum(["VERIFIED", "PREFERRED", "ELITE"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),

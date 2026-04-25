@@ -101,6 +101,8 @@ export type RebateProgram =
   | "heehra-panel"         // NOT YET AVAILABLE
   | "homes-rebate";        // NOT YET AVAILABLE
 
+import type { RebateScope, ServiceArea } from "@/lib/geo/types";
+
 export interface Rebate {
   id: RebateProgram;
   name: string;
@@ -121,6 +123,12 @@ export interface Rebate {
   url: string;
   applicableCategories: ProductCategory[];
   notes?: string;
+  /**
+   * Geographic / utility-territory scope. ALL scopes must match for a user
+   * to qualify (intersection). Empty array == federal/universal.
+   * See src/lib/geo/eligibility.ts for the matching logic.
+   */
+  scopes: RebateScope[];
 }
 
 // ─── Homeowner Profile ─────────────────────────
@@ -131,6 +139,13 @@ export type AMIBracket = "below-80" | "80-150" | "above-150" | "unknown";
 
 export interface HomeProfile {
   zip: string;
+  /** Resolved from ZIP via src/lib/geo/zip-lookup.ts on the server. */
+  state?: string;
+  /** Resolved county id (e.g. "MD:montgomery"). */
+  countyId?: string;
+  /** Selected by user during intake — required for utility-scoped rebates. */
+  electricUtilityId?: string;
+  gasUtilityId?: string;
   squareFootage: number;
   yearBuilt: number;
   bedrooms: number;
@@ -213,7 +228,17 @@ export interface Contractor {
   businessName: string;
   tier: ContractorTier;
   categories: ContractorCategory[];
-  serviceZips: string[];
+  /**
+   * Where this contractor will physically perform work. One of:
+   *   - state-wide: { kind: "state", stateCode }
+   *   - specific counties: { kind: "counties", countyIds }
+   *   - named metro region: { kind: "metro", regionId }
+   * See src/lib/geo/types.ts.
+   */
+  serviceArea: ServiceArea;
+  /** @deprecated — kept for backward compat with the old Vercel intake flow.
+   *  New contractor signups should populate `serviceArea` instead. */
+  serviceZips?: string[];
   rating: number;
   reviewCount: number;
   mhicLicense: string;
