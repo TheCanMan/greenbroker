@@ -18,6 +18,12 @@ compatibility_flags = ["nodejs_compat"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[vars]
+# Commercial FDD backend deployed separately from the Worker app.
+# Public Railway URL is non-sensitive; the shared secret is set via:
+#   wrangler secret put ENTROPY_AUTH_SHARED_SECRET --name greenbroker
+ENTROPY_API_INTERNAL_URL = "https://api-production-544f.up.railway.app"
+
 # Add dashboard env vars/secrets instead of committing them here:
 # - NEXT_PUBLIC_APP_URL
 # - NEXT_PUBLIC_SUPABASE_URL

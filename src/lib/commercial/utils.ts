@@ -41,7 +41,8 @@ export const API_INTERNAL_URL =
   process.env.ENTROPY_API_INTERNAL_URL ?? "http://localhost:8000";
 
 export async function fetchEntropyJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_INTERNAL_URL}${path}`, { cache: "no-store" });
+  const base = process.env.ENTROPY_API_INTERNAL_URL ?? API_INTERNAL_URL;
+  const res = await fetch(`${base}${path}`, { cache: "no-store" });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`Entropy API ${res.status} on ${path}: ${body.slice(0, 200)}`);
