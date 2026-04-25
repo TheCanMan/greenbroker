@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { REBATES } from "@/lib/data/rebates";
 import { formatCurrency } from "@/lib/calculations/savings";
 import { resolveZip } from "@/lib/geo/zip-lookup";
@@ -65,7 +66,9 @@ export default async function RebatesPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <LocationPicker />
+      <Suspense fallback={<div className="card p-5 mb-8" />}>
+        <LocationPicker />
+      </Suspense>
 
       {/* Critical Alert */}
       <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-10">

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { ContractorSearch } from "@/components/geo/ContractorSearch";
 
 const CONTRACTOR_CATEGORIES = [
   {
@@ -93,30 +95,30 @@ const CONTRACTOR_TIERS = [
 export default function ContractorsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-10">
+      <div className="mb-8">
         <h1 className="section-title">Find Contractors</h1>
         <p className="section-subtitle">
-          Vetted contractors for energy efficiency work in Rockville, MD. All verified for
-          proper Maryland licensing and insurance.
+          Vetted contractors for energy efficiency work. Filter by your county
+          and category — only contractors who actually serve your area appear.
         </p>
       </div>
 
-      {/* MVP Notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-10 flex gap-4">
-        <span className="text-blue-500 text-2xl flex-shrink-0">🚧</span>
-        <div>
-          <h2 className="font-bold text-blue-900 mb-1">Contractor Marketplace — Coming Soon</h2>
-          <p className="text-blue-800 text-sm leading-relaxed">
-            The contractor marketplace is in development. We're building the verification pipeline
-            for MHIC licenses, HVACR/electrical/plumbing trade licenses, BPI/NABCEP certifications,
-            and MEA Participating Contractor status. In the meantime, the information below
-            explains exactly what licenses to verify when hiring any energy contractor in
-            Montgomery County.
-          </p>
-          <Link href="/intake" className="btn-primary inline-block mt-4 text-sm py-2 px-4">
-            Get your personalized plan while we build →
-          </Link>
-        </div>
+      {/* Search */}
+      <Suspense fallback={<div className="card p-8 text-sm text-gray-500">Loading…</div>}>
+        <ContractorSearch />
+      </Suspense>
+
+      <div className="my-12 border-t border-gray-100" />
+
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          How GreenBroker vets every contractor
+        </h2>
+        <p className="text-sm text-gray-500">
+          We verify Maryland MHIC + trade licenses, insurance, and (for EmPOWER
+          / MSAP rebate-eligible work) MEA Participating Contractor status
+          before any contractor reaches the marketplace.
+        </p>
       </div>
 
       {/* Contractor Tiers */}
@@ -153,7 +155,7 @@ export default function ContractorsPage() {
       {/* Post-installation verification note */}
       <div className="bg-brand-50 border border-brand-200 rounded-2xl p-6 mb-12">
         <h3 className="font-bold text-brand-900 mb-2">
-          🔍 Post-Installation Verification — GreenBroker's Key Differentiator
+          🔍 Post-Installation Verification — GreenBroker&apos;s Key Differentiator
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-brand-800">
           <div>
@@ -168,7 +170,7 @@ export default function ContractorsPage() {
             <strong>Solar:</strong> Production monitoring against design projections for first 12 months
           </div>
           <div>
-            <strong>Platform guarantee:</strong> Modeled on Thumbtack's program —
+            <strong>Platform guarantee:</strong> Modeled on Thumbtack&apos;s program —
             up to $2,500 money-back + $100,000 property damage coverage
           </div>
         </div>
@@ -229,7 +231,7 @@ export default function ContractorsPage() {
       {/* License Verification */}
       <div className="bg-gray-50 rounded-3xl p-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">
-          How to verify a contractor's licenses yourself
+          How to verify a contractor&apos;s licenses yourself
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-600">
           <div>
