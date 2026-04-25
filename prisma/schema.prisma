@@ -2,6 +2,13 @@
 // GreenBroker Prisma Schema
 // Database: PostgreSQL via Supabase
 // Run: npx prisma generate && npx prisma db push
+//
+// Naming: every model column is mapped to snake_case via @map(...) so the
+// underlying Postgres schema matches the conventions used by:
+//   - src/lib/supabase/types.ts (manually maintained Database interface)
+//   - supabase/migrations/001_rls_policies.sql (snake_case column refs)
+//   - every supabase.from(...).select/insert call in the app
+// Keep camelCase Prisma field names + snake_case @map for new fields.
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -10,8 +17,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")      // Pooler URL (PgBouncer) for runtime
-  directUrl = env("DIRECT_URL")        // Direct URL for migrations
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -36,9 +43,9 @@ enum ContractorStatus {
 }
 
 enum SubscriptionTier {
-  BASIC         // $99/month — 10 leads, basic profile
-  PROFESSIONAL  // $199/month — 25 leads, preferred listing
-  ELITE         // $299/month — unlimited leads, elite badge
+  BASIC
+  PROFESSIONAL
+  ELITE
 }
 
 enum SubscriptionStatus {
@@ -68,316 +75,276 @@ enum ApplicationStatus {
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
-// Extends Supabase Auth users. userId references auth.users(id) in Supabase.
-// Created automatically via Supabase trigger on user signup.
 
 model Profile {
   id        String   @id @default(cuid())
-  userId    String   @unique // Supabase auth.users.id
+  userId    String   @unique @map("user_id")
   email     String   @unique
   role      Role     @default(HOMEOWNER)
-  firstName String?
-  lastName  String?
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
   phone     String?
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   assessments        HomeAssessment[]
   contractor         Contractor?
   rebateApplications RebateApplication[]
   reviews            Review[]
 
-  @@map("profiles")
   @@index([userId])
   @@index([email])
+  @@map("profiles")
 }
 
 // ─── Home Assessment ──────────────────────────────────────────────────────────
-// The core data collected during the homeowner intake flow.
 
 model HomeAssessment {
-  id        String   @id @default(cuid())
-  profileId String?  // null for anonymous guests
+  id        String  @id @default(cuid())
+  profileId String? @map("profile_id")
 
-  // Home basics
-  zip             String
-  // Resolved geo (derived from zip on save via src/lib/geo/zip-lookup.ts).
-  // Nullable because legacy rows pre-date the geo refactor.
-  state           String?
-  countyId        String?
-  // Captured during intake — required for utility-scoped rebate eligibility.
-  electricUtilityId String?
-  gasUtilityId      String?
-  squareFootage   Int
-  yearBuilt       Int
-  bedrooms        Int
-  bathrooms       Int?
+  zip               String
+  state             String?
+  countyId          String? @map("county_id")
+  electricUtilityId String? @map("electric_utility_id")
+  gasUtilityId      String? @map("gas_utility_id")
+  squareFootage     Int     @map("square_footage")
+  yearBuilt         Int     @map("year_built")
+  bedrooms          Int
+  bathrooms         Int?
 
-  // Energy systems
-  primaryHeatingFuel  String  // "gas" | "electric" | "oil" | "propane"
-  currentHvacType     String  // "central-ac-gas-furnace" | "heat-pump" | ...
-  hvacAge             Int?
-  currentHvacSeer     Float?
-  currentFurnaceAfue  Float?
-  hasGas              Boolean @default(true)
-  electricPanelAmps   Int?
+  primaryHeatingFuel String  @map("primary_heating_fuel")
+  currentHvacType    String  @map("current_hvac_type")
+  hvacAge            Int?    @map("hvac_age")
+  currentHvacSeer    Float?  @map("current_hvac_seer")
+  currentFurnaceAfue Float?  @map("current_furnace_afue")
+  hasGas             Boolean @default(true) @map("has_gas")
+  electricPanelAmps  Int?    @map("electric_panel_amps")
 
-  // Roof / solar
-  roofOrientation String?  // "south" | "east-west" | "north" | "flat"
-  roofAge         Int?
-  atticRValue     Float?
+  roofOrientation String? @map("roof_orientation")
+  roofAge         Int?    @map("roof_age")
+  atticRValue     Float?  @map("attic_r_value")
 
-  // Usage (from utility bills)
-  annualKwh    Int?
-  annualTherms Int?
+  annualKwh    Int? @map("annual_kwh")
+  annualTherms Int? @map("annual_therms")
 
-  // Household
-  householdIncome Int?
-  amiBracket      String?  // "below-80" | "80-150" | "above-150" | "unknown"
+  householdIncome Int?    @map("household_income")
+  amiBracket      String? @map("ami_bracket")
 
-  // Extras
-  hasExistingSolar Boolean @default(false)
-  hasEv            Boolean @default(false)
-  urgency          String? // "critical" | "planning" | "exploring"
+  hasExistingSolar Boolean @default(false) @map("has_existing_solar")
+  hasEv            Boolean @default(false) @map("has_ev")
+  urgency          String?
   notes            String?
 
-  // Calculated outputs (stored at save time, recalculated on demand)
-  calcAnnualEnergyCost      Float?
-  calcSavingsPotential      Float?
-  calcAvailableRebates      Float?
-  calcSolarPaybackYears     Float?
-  calcRecommendedUpgrades   String[] // ["leds", "solar", "heat-pump", ...]
+  calcAnnualEnergyCost    Float?   @map("calc_annual_energy_cost")
+  calcSavingsPotential    Float?   @map("calc_savings_potential")
+  calcAvailableRebates    Float?   @map("calc_available_rebates")
+  calcSolarPaybackYears   Float?   @map("calc_solar_payback_years")
+  calcRecommendedUpgrades String[] @map("calc_recommended_upgrades")
 
-  // File uploads (Uploadthing URLs)
-  photoUrls       String[]
-  utilityBillUrls String[]
+  photoUrls       String[] @map("photo_urls")
+  utilityBillUrls String[] @map("utility_bill_urls")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  profile Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  profile Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   leads   Lead[]
 
-  @@map("home_assessments")
   @@index([profileId])
   @@index([zip])
   @@index([countyId])
   @@index([state])
   @@index([createdAt])
+  @@map("home_assessments")
 }
 
 // ─── Contractor ───────────────────────────────────────────────────────────────
 
 model Contractor {
-  id        String           @id @default(cuid())
-  profileId String           @unique
+  id        String @id @default(cuid())
+  profileId String @unique @map("profile_id")
 
-  // Business info
-  businessName  String
-  tier          ContractorTier   @default(VERIFIED)
-  status        ContractorStatus @default(PENDING_REVIEW)
-  categories    String[]  // ContractorCategory values
+  businessName String           @map("business_name")
+  tier         ContractorTier   @default(VERIFIED)
+  status       ContractorStatus @default(PENDING_REVIEW)
+  categories   String[]
 
-  // Service area — structured (preferred). Mirrors src/lib/geo/types.ts → ServiceArea.
-  // serviceAreaKind: "state" | "counties" | "metro" — null for legacy rows
-  // that only populate the deprecated serviceZips below.
-  serviceAreaKind        String?
-  serviceAreaStateCode   String?
-  serviceAreaCountyIds   String[] @default([])  // e.g. ["MD:montgomery", "MD:howard"]
-  serviceAreaMetroId     String?
-  // Optional: which utility territories the contractor is approved to work
-  // in. Populating this lets us filter for MEA-Participating contractors
-  // by EmPOWER utility (PEPCO/BGE/Potomac Edison/etc.).
-  serviceUtilityIds      String[] @default([])
+  // Structured service area (preferred). See src/lib/geo/types.ts → ServiceArea.
+  serviceAreaKind      String?  @map("service_area_kind")
+  serviceAreaStateCode String?  @map("service_area_state_code")
+  serviceAreaCountyIds String[] @default([]) @map("service_area_county_ids")
+  serviceAreaMetroId   String?  @map("service_area_metro_id")
+  serviceUtilityIds    String[] @default([]) @map("service_utility_ids")
 
-  /// @deprecated — kept for backward compat with the old ZIP-list intake.
-  /// New signups populate serviceArea* above; the search API falls back
-  /// to ZIP scanning only for rows where serviceAreaKind IS NULL.
-  serviceZips   String[]  @default([])
+  /// @deprecated — populated only by the legacy ZIP-list intake. The
+  /// search API falls back to ZIP scanning when serviceAreaKind IS NULL.
+  serviceZips String[] @default([]) @map("service_zips")
 
-  // Description
-  bio       String?
-  website   String?
-  logoUrl   String?
+  bio     String?
+  website String?
+  logoUrl String? @map("logo_url")
 
-  // Licenses (Maryland-specific)
-  mhicLicense       String?
-  mhicVerified      Boolean @default(false)
-  hvacLicense       String?
-  electricalLicense String?
-  plumbingLicense   String?
-  wsscLicense       String? // Montgomery County plumbers need this separately
+  mhicLicense       String? @map("mhic_license")
+  mhicVerified      Boolean @default(false) @map("mhic_verified")
+  hvacLicense       String? @map("hvac_license")
+  electricalLicense String? @map("electrical_license")
+  plumbingLicense   String? @map("plumbing_license")
+  wsscLicense       String? @map("wssc_license")
 
-  // Certifications
-  certifications    String[]  // ["BPI", "NABCEP", "EPA608", "EPA-LEAD-RRP", ...]
-  meaParticipating  Boolean   @default(false) // Required for EmPOWER rebates
+  certifications   String[]
+  meaParticipating Boolean  @default(false) @map("mea_participating")
 
-  // Insurance & background
-  insuranceVerified     Boolean @default(false)
-  backgroundCheckPassed Boolean @default(false)
-  insuranceExpiry       DateTime?
+  insuranceVerified     Boolean   @default(false) @map("insurance_verified")
+  backgroundCheckPassed Boolean   @default(false) @map("background_check_passed")
+  insuranceExpiry       DateTime? @map("insurance_expiry")
 
-  // Quality metrics
   rating            Float @default(0)
-  reviewCount       Int   @default(0)
-  completedProjects Int   @default(0)
+  reviewCount       Int   @default(0) @map("review_count")
+  completedProjects Int   @default(0) @map("completed_projects")
 
-  // Stripe billing
-  stripeCustomerId    String?  @unique
-  subscriptionId      String?  @unique
-  subscriptionTier    SubscriptionTier?
-  subscriptionStatus  SubscriptionStatus?
-  subscriptionEndDate DateTime?
-  leadCredits         Int      @default(0)  // Remaining credits for lead purchases
+  stripeCustomerId    String?             @unique @map("stripe_customer_id")
+  subscriptionId      String?             @unique @map("subscription_id")
+  subscriptionTier    SubscriptionTier?   @map("subscription_tier")
+  subscriptionStatus  SubscriptionStatus? @map("subscription_status")
+  subscriptionEndDate DateTime?           @map("subscription_end_date")
+  leadCredits         Int                 @default(0) @map("lead_credits")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  profile Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   leads   Lead[]
   reviews Review[]
+  // GIN indexes on service_area_county_ids, service_utility_ids, categories
+  // live in supabase/migrations/100_gin_indexes.sql — Prisma can't model
+  // GIN indexes on text[] columns directly.
 
-  @@map("contractors")
   @@index([status])
   @@index([tier])
   @@index([subscriptionStatus])
   @@index([serviceAreaKind])
   @@index([serviceAreaStateCode])
-  // GIN index for `service_area_county_ids @> ARRAY[?]` lookups in the
-  // contractor search API. Created explicitly in 002_geo_columns.sql since
-  // Prisma doesn't model GIN indexes for text[] columns directly.
+  @@map("contractors")
 }
 
 // ─── Lead ─────────────────────────────────────────────────────────────────────
-// A contractor purchases access to a homeowner's assessment.
 
 model Lead {
   id           String     @id @default(cuid())
-  assessmentId String
-  contractorId String
+  assessmentId String     @map("assessment_id")
+  contractorId String     @map("contractor_id")
   status       LeadStatus @default(NEW)
 
-  // Pricing
-  pricePaid        Float
-  stripePaymentId  String?  // Stripe PaymentIntent ID
+  pricePaid       Float   @map("price_paid")
+  stripePaymentId String? @map("stripe_payment_id")
 
-  // Tracking
-  contactedAt DateTime?
-  quotedAt    DateTime?
-  closedAt    DateTime?
-  closedValue Float?       // Actual project value if won
+  contactedAt DateTime? @map("contacted_at")
+  quotedAt    DateTime? @map("quoted_at")
+  closedAt    DateTime? @map("closed_at")
+  closedValue Float?    @map("closed_value")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   assessment HomeAssessment @relation(fields: [assessmentId], references: [id])
   contractor Contractor     @relation(fields: [contractorId], references: [id])
 
-  @@unique([assessmentId, contractorId])  // Contractor can only buy same lead once
-  @@map("leads")
+  @@unique([assessmentId, contractorId])
   @@index([contractorId])
   @@index([assessmentId])
   @@index([status])
+  @@map("leads")
 }
 
 // ─── Review ───────────────────────────────────────────────────────────────────
 
 model Review {
-  id           String  @id @default(cuid())
-  contractorId String
-  profileId    String
+  id           String @id @default(cuid())
+  contractorId String @map("contractor_id")
+  profileId    String @map("profile_id")
 
-  rating   Int     // 1–5
-  title    String?
-  body     String
-  verified Boolean @default(false) // verified project completion
+  rating       Int
+  title        String?
+  body         String
+  verified     Boolean @default(false)
+  category     String?
+  projectValue Float?  @map("project_value")
 
-  // What category of work?
-  category  String? // "hvac" | "solar" | "water-heater" | etc.
-  projectValue Float? // approximate project cost
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
   profile    Profile    @relation(fields: [profileId], references: [id])
 
-  @@map("reviews")
   @@index([contractorId])
   @@index([profileId])
+  @@map("reviews")
 }
 
 // ─── Rebate Application ───────────────────────────────────────────────────────
-// Tracks homeowner rebate applications GreenBroker helps submit.
 
 model RebateApplication {
   id        String @id @default(cuid())
-  profileId String
+  profileId String @map("profile_id")
 
-  programId   String  // e.g. "empower-electrification"
-  programName String
+  programId   String @map("program_id")
+  programName String @map("program_name")
 
-  status      ApplicationStatus @default(DRAFT)
+  status ApplicationStatus @default(DRAFT)
 
-  submittedAt  DateTime?
-  approvedAt   DateTime?
-  amount       Float?  // Approved amount
+  submittedAt DateTime? @map("submitted_at")
+  approvedAt  DateTime? @map("approved_at")
+  amount      Float?
 
   notes        String?
-  documentUrls String[]  // Supporting documents
+  documentUrls String[] @map("document_urls")
 
-  // Pre-filled form data (JSON blob)
-  formData Json?
+  formData Json? @map("form_data")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@map("rebate_applications")
   @@index([profileId])
   @@index([status])
+  @@map("rebate_applications")
 }
 
 // ─── Stripe Events ────────────────────────────────────────────────────────────
-// Idempotency store for Stripe webhook events.
 
 model StripeEvent {
-  id          String   @id   // Stripe event ID (evt_...)
+  id          String   @id
   type        String
-  processedAt DateTime @default(now())
+  processedAt DateTime @default(now()) @map("processed_at")
   data        Json
 
   @@map("stripe_events")
 }
 
 // ─── Contact Request ─────────────────────────────────────────────────────────
-// When homeowners contact contractors directly through GreenBroker.
 
 model ContactRequest {
-  id           String  @id @default(cuid())
+  id String @id @default(cuid())
 
-  // Homeowner info
-  name         String
-  email        String
-  phone        String?
+  name  String
+  email String
+  phone String?
 
-  // What they need
-  message      String
-  categories   String[]  // What type of work
-  zip          String
+  message    String
+  categories String[]
+  zip        String
 
-  // Routing
-  contractorId String?  // If contacting specific contractor
+  contractorId String? @map("contractor_id")
 
-  // Follow-up
-  responded    Boolean  @default(false)
-  respondedAt  DateTime?
+  responded   Boolean   @default(false)
+  respondedAt DateTime? @map("responded_at")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@map("contact_requests")
   @@index([contractorId])
   @@index([email])
+  @@map("contact_requests")
 }
