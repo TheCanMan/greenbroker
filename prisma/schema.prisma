@@ -146,6 +146,12 @@ model HomeAssessment {
   photoUrls       String[] @map("photo_urls")
   utilityBillUrls String[] @map("utility_bill_urls")
 
+  /// Phase-2 intake fields (goals, household_size, income_range, assistance,
+  /// consents, ownership, occupants, water-heater details, etc.) stored as
+  /// JSONB so we don't need a per-field migration. Promote to columns when
+  /// we have a real query that needs an index.
+  intakeV2        Json?    @map("intake_v2")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -158,6 +164,255 @@ model HomeAssessment {
   @@index([state])
   @@index([createdAt])
   @@map("home_assessments")
+}
+
+// ─── Residential Marketplace Models ──────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  profileId String?  @map("profile_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([profileId])
+  @@map("users")
+}
+
+model HomeProfile {
+  id           String   @id @default(cuid())
+  assessmentId String?  @map("assessment_id")
+  profileId    String?  @map("profile_id")
+  address      String?
+  city         String?
+  state        String?
+  county       String?
+  zip          String
+  homeType     String?  @map("home_type")
+  ownership    String?
+  yearBuilt    Int?     @map("year_built")
+  squareFeet   Int?     @map("square_feet")
+  occupants    Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([assessmentId])
+  @@index([profileId])
+  @@index([zip])
+  @@map("home_profiles")
+}
+
+model UtilityAccount {
+  id             String   @id @default(cuid())
+  homeProfileId  String?  @map("home_profile_id")
+  utilityType    String   @map("utility_type")
+  utilityId      String?  @map("utility_id")
+  utilityName    String?  @map("utility_name")
+  currentSupplier String? @map("current_supplier")
+  accountNumber  String? @map("account_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([homeProfileId])
+  @@index([utilityId])
+  @@map("utility_accounts")
+}
+
+model UtilityBill {
+  id               String   @id @default(cuid())
+  utilityAccountId String?  @map("utility_account_id")
+  billUrl          String?  @map("bill_url")
+  periodStart      DateTime? @map("period_start")
+  periodEnd        DateTime? @map("period_end")
+  kwh              Float?
+  therms           Float?
+  costUsd          Float?   @map("cost_usd")
+  parsedJson       Json?    @map("parsed_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([utilityAccountId])
+  @@map("utility_bills")
+}
+
+model ExistingEquipment {
+  id            String   @id @default(cuid())
+  homeProfileId String? @map("home_profile_id")
+  equipmentType String  @map("equipment_type")
+  fuelType      String? @map("fuel_type")
+  ageYears      Int?    @map("age_years")
+  condition     String?
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([homeProfileId])
+  @@index([equipmentType])
+  @@map("existing_equipment")
+}
+
+model GoalSelection {
+  id            String   @id @default(cuid())
+  homeProfileId String? @map("home_profile_id")
+  goal          String
+  priority      Int?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([homeProfileId])
+  @@index([goal])
+  @@map("goal_selections")
+}
+
+model EligibilityProfile {
+  id                 String   @id @default(cuid())
+  homeProfileId      String?  @map("home_profile_id")
+  householdSize      Int?     @map("household_size")
+  incomeRange        String?  @map("income_range")
+  assistancePrograms String[] @default([]) @map("assistance_programs")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([homeProfileId])
+  @@index([incomeRange])
+  @@map("eligibility_profiles")
+}
+
+model RebateProgram {
+  id                          String   @id
+  programName                 String   @map("program_name")
+  administrator               String
+  territory                   String?
+  eligibleUpgradeTypes        String[] @default([]) @map("eligible_upgrade_types")
+  maxRebate                   String?  @map("max_rebate")
+  applicationTiming           String?  @map("application_timing")
+  requiresContractor          Boolean  @default(false) @map("requires_contractor")
+  requiresIncomeQualification Boolean  @default(false) @map("requires_income_qualification")
+  documentsNeeded             String[] @default([]) @map("documents_needed")
+  lastVerified                DateTime? @map("last_verified")
+  sourceUrl                   String?  @map("source_url")
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  @@index([administrator])
+  @@map("rebate_programs")
+}
+
+model UpgradeRecommendation {
+  id                  String   @id @default(cuid())
+  homeProfileId       String?  @map("home_profile_id")
+  upgradeType         String   @map("upgrade_type")
+  projectCostRange    Json     @map("project_cost_range")
+  eligibleRebates     String[] @default([]) @map("eligible_rebates")
+  netCostRange        Json     @map("net_cost_range")
+  annualSavingsRange  Json     @map("annual_savings_range")
+  paybackRange        Json     @map("payback_range")
+  confidenceScore     Int      @map("confidence_score")
+  paperworkStatus     String   @map("paperwork_status")
+  whyRecommended      String   @map("why_recommended")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([homeProfileId])
+  @@index([upgradeType])
+  @@map("upgrade_recommendations")
+}
+
+model Product {
+  id                   String   @id
+  productName          String   @map("product_name")
+  brand                String
+  category             String
+  energyStarCertified  Boolean  @default(false) @map("energy_star_certified")
+  efficiencyMetric     String?  @map("efficiency_metric")
+  estimatedPrice       String?  @map("estimated_price")
+  eligibleRebates      String[] @default([]) @map("eligible_rebates")
+  affiliateUrl         String?  @map("affiliate_url")
+  retailer             String?
+  modelNumber          String?  @map("model_number")
+  warranty             String?
+  installationRequired Boolean  @default(false) @map("installation_required")
+  bestFor              String?  @map("best_for")
+  rankingScore         Int      @default(0) @map("ranking_score")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([rankingScore])
+  @@map("products")
+}
+
+model ContractorQuote {
+  id                  String   @id @default(cuid())
+  contractorId        String?  @map("contractor_id")
+  homeProfileId       String?  @map("home_profile_id")
+  selectedUpgrade     String   @map("selected_upgrade")
+  grossCostUsd        Float?   @map("gross_cost_usd")
+  eligibleModelNumber String?  @map("eligible_model_number")
+  timeline            String?
+  licenseInfo         Json?    @map("license_info")
+  participatesInRebate Boolean @default(false) @map("participates_in_rebate")
+  status              String   @default("draft")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([contractorId])
+  @@index([homeProfileId])
+  @@map("contractor_quotes")
+}
+
+model RebatePacket {
+  id                  String   @id @default(cuid())
+  homeProfileId       String?  @map("home_profile_id")
+  selectedUpgrade     String   @map("selected_upgrade")
+  selectedRebateId    String?  @map("selected_rebate_id")
+  contractorQuoteId   String?  @map("contractor_quote_id")
+  prefilledSummary    Json?    @map("prefilled_summary")
+  requiredDocuments   String[] @default([]) @map("required_documents")
+  missingItems        String[] @default([]) @map("missing_items")
+  submissionInstructions String? @map("submission_instructions")
+  status              String   @default("draft")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([homeProfileId])
+  @@index([status])
+  @@map("rebate_packets")
+}
+
+model SupplierOffer {
+  id                  String   @id
+  supplierName        String   @map("supplier_name")
+  licenseNumber       String   @map("license_number")
+  commodity           String
+  rate                Float
+  fixedOrVariable     String   @map("fixed_or_variable")
+  termMonths          Int      @map("term_months")
+  monthlyFee          Float    @default(0) @map("monthly_fee")
+  earlyTerminationFee Float    @default(0) @map("early_termination_fee")
+  renewablePercent    Int      @default(0) @map("renewable_percent")
+  warnings            String[] @default([])
+  lastVerified        DateTime? @map("last_verified")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([commodity])
+  @@index([supplierName])
+  @@map("supplier_offers")
+}
+
+model SupplierComparison {
+  id                    String   @id @default(cuid())
+  homeProfileId         String?  @map("home_profile_id")
+  utility               String?
+  currentSupplier       String?  @map("current_supplier")
+  currentRate           Float?   @map("current_rate")
+  annualKwh             Int?     @map("annual_kwh")
+  desiredPlanType       String?  @map("desired_plan_type")
+  riskTolerance         String?  @map("risk_tolerance")
+  resultsJson           Json?    @map("results_json")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@index([homeProfileId])
+  @@map("supplier_comparisons")
 }
 
 // ─── Contractor ───────────────────────────────────────────────────────────────

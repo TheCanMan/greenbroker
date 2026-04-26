@@ -1,0 +1,26 @@
+{
+  "market": "Rockville / Montgomery County / Maryland / Pepco",
+  "currency": "USD",
+  "confidence_policy": "Use ranges, not guaranteed savings.",
+  "electric_blended_rate_per_kwh": 0.217,
+  "pepco_standard_offer_rate_per_kwh": 0.1112,
+  "gas_rate_per_therm": 1.4,
+  "upgrade_assumptions": {
+    "heat_pump_water_heater": {
+      "project_cost_range": [2200, 5500],
+      "annual_savings_range": [180, 650]
+    },
+    "home_performance": {
+      "project_cost_range": [2500, 12000],
+      "annual_savings_range": [220, 950]
+    },
+    "smart_thermostat": {
+      "project_cost_range": [120, 280],
+      "annual_savings_range": [70, 170]
+    },
+    "energy_supplier_comparison": {
+      "project_cost_range": [0, 0],
+      "annual_savings_range": [40, 260]
+    }
+  }
+}

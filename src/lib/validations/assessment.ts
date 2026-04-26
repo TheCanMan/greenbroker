@@ -64,6 +64,13 @@ export const AssessmentSchema = z.object({
 
   photoUrls: z.array(z.string().url()).max(10).optional().default([]),
   utilityBillUrls: z.array(z.string().url()).max(5).optional().default([]),
+
+  /**
+   * Phase-2 intake fields stored as a single JSONB blob to avoid an 18-column
+   * migration per release. Add explicit columns later for any field that
+   * graduates to a real query (e.g. goals, income_range for filtering).
+   */
+  intake_v2: z.record(z.string(), z.any()).optional(),
 });
 
 export type AssessmentInput = z.infer<typeof AssessmentSchema>;

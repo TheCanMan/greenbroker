@@ -4,7 +4,14 @@ import { assessOffer } from "@/lib/data/supplier-risk";
 import { formatCurrency } from "@/lib/calculations/savings";
 
 interface PageProps {
-  searchParams: Promise<{ kwh?: string; baseline?: string }>;
+  searchParams: Promise<{
+    utility?: string;
+    current_supplier?: string;
+    current_rate?: string;
+    kwh?: string;
+    desired_plan_type?: string;
+    risk_tolerance?: string;
+  }>;
 }
 
 const BAND_STYLES = {
@@ -22,11 +29,17 @@ const SEVERITY_STYLES = {
 export default async function SupplierComparePage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const annualKwh = sp.kwh ? Math.max(1, parseInt(sp.kwh)) : 11000; // baseline 2k sqft home
-  const baselineRate = sp.baseline
-    ? Math.max(0.01, parseFloat(sp.baseline))
+  const baselineRate = sp.current_rate
+    ? Math.max(0.01, parseFloat(sp.current_rate))
     : PEPCO_STANDARD_OFFER_RATE;
+  const desiredPlanType = sp.desired_plan_type ?? "fixed_rate_only";
+  const riskTolerance = sp.risk_tolerance ?? "low";
 
-  const assessed = SUPPLIER_OFFERS.map((offer) => ({
+  const assessed = SUPPLIER_OFFERS.filter((offer) => {
+    if (desiredPlanType === "fixed_rate_only") return offer.rateType === "fixed";
+    if (desiredPlanType === "renewable") return offer.renewablePercent > 0;
+    return true;
+  }).map((offer) => ({
     offer,
     assessment: assessOffer(offer, annualKwh, baselineRate),
   })).sort((a, b) => {
@@ -49,7 +62,6 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      {/* Tunables — currently URL-driven; swap for a real form in v2 */}
       <form
         method="GET"
         className="card p-5 mb-8 bg-gradient-to-br from-brand-50 to-white"
@@ -59,8 +71,45 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="block">
+            <span className="block text-xs text-gray-600 mb-1">Utility</span>
+            <select
+              name="utility"
+              defaultValue={sp.utility ?? "pepco-md"}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="pepco-md">PEPCO Maryland</option>
+              <option value="bge">BGE</option>
+              <option value="potomac-edison-md">Potomac Edison</option>
+            </select>
+          </label>
+          <label className="block">
             <span className="block text-xs text-gray-600 mb-1">
-              Annual kWh (estimate)
+              Current supplier
+            </span>
+            <input
+              type="text"
+              name="current_supplier"
+              defaultValue={sp.current_supplier ?? "Utility standard offer"}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs text-gray-600 mb-1">
+              Current rate ($/kWh)
+            </span>
+            <input
+              type="number"
+              name="current_rate"
+              defaultValue={baselineRate}
+              min={0.01}
+              max={1}
+              step={0.0001}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs text-gray-600 mb-1">
+              Annual kWh
             </span>
             <input
               type="number"
@@ -73,18 +122,28 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-gray-600 mb-1">
-              Baseline supply rate ($/kWh)
-            </span>
-            <input
-              type="number"
-              name="baseline"
-              defaultValue={baselineRate}
-              min={0.01}
-              max={1}
-              step={0.0001}
+            <span className="block text-xs text-gray-600 mb-1">Desired plan</span>
+            <select
+              name="desired_plan_type"
+              defaultValue={desiredPlanType}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+            >
+              <option value="fixed_rate_only">Fixed rate only</option>
+              <option value="lowest_cost">Lowest cost</option>
+              <option value="renewable">Renewable</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs text-gray-600 mb-1">Risk tolerance</span>
+            <select
+              name="risk_tolerance"
+              defaultValue={riskTolerance}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
           </label>
           <button type="submit" className="btn-primary self-end text-sm py-2">
             Recalculate
@@ -146,6 +205,7 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
 
                 <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-4 text-xs">
                   <Cell label="Rate" value={`$${offer.rate.toFixed(4)}/kWh`} />
+                  <Cell label="Risk score" value={`${assessment.score}/100`} accent={assessment.score >= 50 ? "warn" : undefined} />
                   <Cell
                     label="Type"
                     value={
@@ -245,7 +305,13 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
       </div>
 
       <div className="card p-5 mt-8 bg-gray-50 border-gray-200">
-        <h3 className="font-bold text-gray-900 mb-2">Safe-switch checklist</h3>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <h3 className="font-bold text-gray-900 mb-2">Safe-switch checklist</h3>
+          <a href="#safe-switch-checklist" className="btn-commercial text-sm py-2 px-4">
+            Review switch checklist
+          </a>
+        </div>
+        <div id="safe-switch-checklist" />
         <ol className="text-sm text-gray-700 space-y-1.5 list-decimal list-inside">
           <li>Find the &quot;Price to Compare&quot; on your most recent utility bill — that&apos;s the rate to beat.</li>
           <li>Pick a fixed-rate plan with a clear term (12–24 months) and no monthly fee.</li>

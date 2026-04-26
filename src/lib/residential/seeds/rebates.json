@@ -1,0 +1,67 @@
+[
+  {
+    "program_name": "Pepco Home Performance with ENERGY STAR",
+    "administrator": "Pepco",
+    "territory": "Maryland Pepco residential customers",
+    "eligible_upgrade_types": ["insulation", "air sealing", "duct sealing", "electrification upgrades"],
+    "max_rebate": "Up to $10,000 for eligible home upgrades; up to $15,000 for eligible electrification upgrades",
+    "application_timing": "before_install",
+    "requires_contractor": true,
+    "requires_income_qualification": false,
+    "documents_needed": ["Home Performance assessment", "Participating contractor scope", "Final invoice", "Proof of utility account"],
+    "last_verified": "2026-04-25",
+    "source_url": "https://homeenergysavings.pepco.com/md/residential/"
+  },
+  {
+    "program_name": "Pepco Heat Pump Water Heater",
+    "administrator": "Pepco",
+    "territory": "Maryland Pepco residential electric customers",
+    "eligible_upgrade_types": ["ENERGY STAR heat pump water heater"],
+    "max_rebate": "Up to $1,600",
+    "application_timing": "instant_or_after_install",
+    "requires_contractor": false,
+    "requires_income_qualification": false,
+    "documents_needed": ["Proof of purchase", "Model number", "Utility account"],
+    "last_verified": "2026-04-25",
+    "source_url": "https://homeenergysavings.pepco.com/md/residential/appliance-rebate-program/overview/electric-heat-pump-water-heater"
+  },
+  {
+    "program_name": "Pepco Smart Thermostat",
+    "administrator": "Pepco",
+    "territory": "Maryland Pepco residential customers",
+    "eligible_upgrade_types": ["ENERGY STAR smart thermostat"],
+    "max_rebate": "Up to $100",
+    "application_timing": "instant_or_after_install",
+    "requires_contractor": false,
+    "requires_income_qualification": false,
+    "documents_needed": ["Proof of purchase", "Model number", "Utility account"],
+    "last_verified": "2026-04-25",
+    "source_url": "https://homeenergysavings.pepco.com/md/residential/"
+  },
+  {
+    "program_name": "Maryland Energy Administration FY26 Programs",
+    "administrator": "Maryland Energy Administration",
+    "territory": "Maryland",
+    "eligible_upgrade_types": ["IRA/HERO/HEAR", "Maryland Solar Access", "energy storage", "other FY26 programs"],
+    "max_rebate": "Verify before showing exact eligibility",
+    "application_timing": "varies",
+    "requires_contractor": true,
+    "requires_income_qualification": true,
+    "documents_needed": ["Program application", "Income documentation when required", "Contractor quote", "Equipment documentation"],
+    "last_verified": "2026-04-25",
+    "source_url": "https://energy.maryland.gov"
+  },
+  {
+    "program_name": "Montgomery County / Rockville Climate and Energy Incentives",
+    "administrator": "Montgomery County and City of Rockville",
+    "territory": "Montgomery County / Rockville",
+    "eligible_upgrade_types": ["electrification", "solar", "energy storage", "home performance"],
+    "max_rebate": "Placeholder - verify before showing exact eligibility",
+    "application_timing": "varies",
+    "requires_contractor": true,
+    "requires_income_qualification": false,
+    "documents_needed": ["Address verification", "Contractor quote", "Invoice", "Program-specific forms"],
+    "last_verified": "2026-04-25",
+    "source_url": "https://www.montgomerycountymd.gov/green/"
+  }
+]

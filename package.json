@@ -19,6 +19,7 @@
     "cf:typegen": "wrangler types --env-interface CloudflareEnv src/env.cloudflare.d.ts"
   },
   "dependencies": {
+    "@ast-grep/napi": "^0.42.1",
     "@prisma/client": "^5.15.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-avatar": "^1.1.0",

@@ -1,646 +1,1060 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { determineAMIBracket, calcPersonalizedSavings, formatCurrency } from "@/lib/calculations/savings";
-import type { HomeProfile, AMIBracket } from "@/lib/types";
+import { useRouter, useSearchParams } from "next/navigation";
 import { resolveZip } from "@/lib/geo/zip-lookup";
 import { COUNTY_BY_ID } from "@/lib/geo/registry";
 import { UtilityPicker } from "@/components/geo/UtilityPicker";
+import { GREENBROKER_PLAN_STORAGE_KEY } from "@/lib/residential/agents";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+// ─── Form types ──────────────────────────────────────────────────────────────
+// Mirrors the Phase-1 spec sections A–F. Anything not pre-existing on
+// home_assessments is stored in the intake_v2 JSONB column on save.
 
-const STEPS = [
-  { id: 1, label: "Your Home", icon: "🏠" },
-  { id: 2, label: "Energy Systems", icon: "⚡" },
-  { id: 3, label: "Usage & Bills", icon: "📊" },
-  { id: 4, label: "Household", icon: "👨‍👩‍👧" },
-  { id: 5, label: "Your Plan", icon: "✅" },
-];
+type HomeType = "single_family" | "townhouse" | "condo" | "multifamily";
+type Ownership = "own" | "rent" | "landlord";
+type HeatingType =
+  | "gas_furnace"
+  | "electric_resistance"
+  | "heat_pump"
+  | "oil"
+  | "propane"
+  | "unknown";
+type CoolingType = "central_ac" | "heat_pump" | "window_units" | "none" | "unknown";
+type WaterHeaterType =
+  | "gas_tank"
+  | "electric_tank"
+  | "tankless"
+  | "heat_pump"
+  | "unknown";
+type Goal =
+  | "lower_bills"
+  | "replace_broken_equipment"
+  | "improve_comfort"
+  | "electrify_home"
+  | "solar_or_battery"
+  | "compare_energy_supplier"
+  | "get_contractor_quotes"
+  | "improve_indoor_air_quality";
+type IncomeRange =
+  | "under_50k"
+  | "50k_80k"
+  | "80k_120k"
+  | "120k_180k"
+  | "over_180k"
+  | "prefer_not_to_say";
+type AssistanceProgram = "SNAP" | "Medicaid" | "LIHEAP" | "SSI" | "other" | "none" | "prefer_not_to_say";
 
-const DEFAULT_PROFILE: Partial<HomeProfile> = {
+interface FormState {
+  // A. Home basics
+  address: string;
+  zip: string;
+  city: string;
+  homeType: HomeType | "";
+  ownership: Ownership | "";
+  yearBuilt: number;
+  squareFootage: number;
+  occupants: number;
+
+  // B. Utility info
+  electricUtilityId: string;
+  gasUtilityId: string;
+  currentSupplierKnown: boolean;
+  currentSupplierName: string;
+  averageMonthlyBill: number | "";
+  annualKwh: number | "";
+  annualTherms: number | "";
+
+  // C. Existing equipment
+  heatingType: HeatingType | "";
+  coolingType: CoolingType | "";
+  waterHeaterType: WaterHeaterType | "";
+  waterHeaterAge: number | "";
+  hvacAge: number | "";
+  hasSmartThermostat: boolean;
+  insulationConcerns: string;
+  windowCondition: string;
+  roofAge: number | "";
+
+  // D. Goals
+  goals: Goal[];
+
+  // E. Eligibility
+  householdSize: number | "";
+  incomeRange: IncomeRange | "";
+  assistancePrograms: AssistanceProgram[];
+
+  // F. Consent
+  consentGeneratePlan: boolean;
+  consentStoreDocuments: boolean;
+  consentContact: boolean;
+}
+
+const DEFAULTS: FormState = {
+  address: "",
   zip: "",
-  squareFootage: 2000,
+  city: "",
+  homeType: "",
+  ownership: "",
   yearBuilt: 1985,
-  bedrooms: 3,
-  bathrooms: 2,
-  hasGas: true,
-  hasExistingSolar: false,
-  hasEv: false,
-  primaryHeatingFuel: "gas",
-  currentHvacType: "central-ac-gas-furnace",
+  squareFootage: 2000,
+  occupants: 3,
+
+  electricUtilityId: "",
+  gasUtilityId: "",
+  currentSupplierKnown: false,
+  currentSupplierName: "",
+  averageMonthlyBill: "",
+  annualKwh: "",
+  annualTherms: "",
+
+  heatingType: "",
+  coolingType: "",
+  waterHeaterType: "",
+  waterHeaterAge: "",
+  hvacAge: "",
+  hasSmartThermostat: false,
+  insulationConcerns: "",
+  windowCondition: "",
+  roofAge: "",
+
+  goals: [],
+
+  householdSize: "",
+  incomeRange: "",
+  assistancePrograms: [],
+
+  consentGeneratePlan: false,
+  consentStoreDocuments: false,
+  consentContact: false,
 };
 
-function IntakeBody() {
-  const searchParams = useSearchParams();
-  const [step, setStep] = useState<Step>(1);
-  const [profile, setProfile] = useState<Partial<HomeProfile>>(DEFAULT_PROFILE);
+const SECTIONS = [
+  { id: "home", label: "Home basics", icon: "🏠" },
+  { id: "utility", label: "Utility & bill", icon: "⚡" },
+  { id: "equipment", label: "Equipment", icon: "🛠️" },
+  { id: "goals", label: "Goals", icon: "🎯" },
+  { id: "eligibility", label: "Eligibility", icon: "👥" },
+  { id: "consent", label: "Consent", icon: "✓" },
+] as const;
 
-  // Pre-fill ZIP from ?zip=NNNNN if the user came in from the homepage form.
+const HOME_TYPES: { value: HomeType; label: string }[] = [
+  { value: "single_family", label: "Single-family" },
+  { value: "townhouse", label: "Townhouse" },
+  { value: "condo", label: "Condo" },
+  { value: "multifamily", label: "Multifamily (2–4 units)" },
+];
+
+const OWNERSHIP: { value: Ownership; label: string }[] = [
+  { value: "own", label: "I own it" },
+  { value: "rent", label: "I rent" },
+  { value: "landlord", label: "I'm a landlord" },
+];
+
+const HEATING: { value: HeatingType; label: string }[] = [
+  { value: "gas_furnace", label: "Gas furnace" },
+  { value: "electric_resistance", label: "Electric resistance / baseboard" },
+  { value: "heat_pump", label: "Heat pump" },
+  { value: "oil", label: "Oil" },
+  { value: "propane", label: "Propane" },
+  { value: "unknown", label: "Not sure" },
+];
+
+const COOLING: { value: CoolingType; label: string }[] = [
+  { value: "central_ac", label: "Central AC" },
+  { value: "heat_pump", label: "Heat pump (heats + cools)" },
+  { value: "window_units", label: "Window units" },
+  { value: "none", label: "None" },
+  { value: "unknown", label: "Not sure" },
+];
+
+const WATER_HEATERS: { value: WaterHeaterType; label: string }[] = [
+  { value: "gas_tank", label: "Gas tank" },
+  { value: "electric_tank", label: "Electric tank" },
+  { value: "tankless", label: "Tankless gas" },
+  { value: "heat_pump", label: "Heat pump water heater" },
+  { value: "unknown", label: "Not sure" },
+];
+
+const GOALS: { value: Goal; label: string; icon: string }[] = [
+  { value: "lower_bills", label: "Lower my monthly bills", icon: "💰" },
+  { value: "replace_broken_equipment", label: "Replace broken equipment", icon: "🔧" },
+  { value: "improve_comfort", label: "Improve home comfort", icon: "🛋️" },
+  { value: "electrify_home", label: "Electrify my home (drop gas)", icon: "🔌" },
+  { value: "solar_or_battery", label: "Add solar or battery storage", icon: "☀️" },
+  { value: "compare_energy_supplier", label: "Compare energy suppliers", icon: "📊" },
+  { value: "get_contractor_quotes", label: "Get contractor quotes", icon: "🧾" },
+  { value: "improve_indoor_air_quality", label: "Improve indoor air quality", icon: "🌬️" },
+];
+
+const INCOME_RANGES: { value: IncomeRange; label: string }[] = [
+  { value: "under_50k", label: "Under $50,000" },
+  { value: "50k_80k", label: "$50,000 – $80,000" },
+  { value: "80k_120k", label: "$80,000 – $120,000" },
+  { value: "120k_180k", label: "$120,000 – $180,000" },
+  { value: "over_180k", label: "Over $180,000" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
+
+const ASSISTANCE: { value: AssistanceProgram; label: string }[] = [
+  { value: "SNAP", label: "SNAP" },
+  { value: "Medicaid", label: "Medicaid" },
+  { value: "LIHEAP", label: "LIHEAP" },
+  { value: "SSI", label: "SSI" },
+  { value: "other", label: "Other" },
+  { value: "none", label: "None" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
+
+// ─── Page ────────────────────────────────────────────────────────────────────
+
+function IntakeForm() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const [form, setForm] = useState<FormState>(DEFAULTS);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill ZIP from ?zip= param if homepage form sent us here.
   useEffect(() => {
-    const z = searchParams.get("zip");
+    const z = sp.get("zip");
     if (z && /^\d{5}$/.test(z)) {
-      setProfile((prev) => ({ ...prev, zip: z }));
+      setForm((prev) => ({ ...prev, zip: z }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [results, setResults] = useState<ReturnType<typeof calcPersonalizedSavings> | null>(null);
 
-  const update = (updates: Partial<HomeProfile>) => {
-    setProfile((prev) => ({ ...prev, ...updates }));
-  };
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
-  // Resolve ZIP → county on every render (cheap, prefix lookup).
   const resolved = useMemo(
-    () => (profile.zip && profile.zip.length === 5 ? resolveZip(profile.zip) : null),
-    [profile.zip]
+    () => (form.zip.length === 5 ? resolveZip(form.zip) : null),
+    [form.zip]
   );
   const county = resolved ? COUNTY_BY_ID.get(resolved.countyId) : null;
 
-  const handleFinish = () => {
-    if (profile.householdIncome) {
-      const amiBracket = determineAMIBracket(profile.householdIncome);
-      update({ amiBracket });
-    }
-    const calc = calcPersonalizedSavings(profile as HomeProfile);
-    setResults(calc);
-    setStep(5);
-  };
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const progressPct = ((step - 1) / (STEPS.length - 1)) * 100;
+  // Validation: minimum required fields before submit.
+  const blockers: string[] = [];
+  if (!form.zip || form.zip.length !== 5) blockers.push("ZIP code");
+  if (!form.homeType) blockers.push("home type");
+  if (!form.ownership) blockers.push("ownership");
+  if (!form.electricUtilityId) blockers.push("electric utility");
+  if (!form.heatingType) blockers.push("current heating type");
+  if (form.goals.length === 0) blockers.push("at least one goal");
+  if (!form.consentGeneratePlan) blockers.push("consent to generate plan");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (blockers.length > 0) {
+      setError(`Still need: ${blockers.join(", ")}`);
+      sectionRefs.current[SECTIONS[0].id]?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload = {
+        // Existing AssessmentSchema fields
+        zip: form.zip,
+        electricUtilityId: form.electricUtilityId || undefined,
+        gasUtilityId: form.gasUtilityId || undefined,
+        squareFootage: form.squareFootage,
+        yearBuilt: form.yearBuilt,
+        bedrooms: 3, // legacy required field; not asked in v2
+        primaryHeatingFuel: mapHeatingFuel(form.heatingType),
+        currentHvacType: mapHvacType(form.heatingType, form.coolingType),
+        hvacAge: typeof form.hvacAge === "number" ? form.hvacAge : undefined,
+        hasGas: form.heatingType === "gas_furnace" || form.waterHeaterType === "gas_tank",
+        annualKwh: typeof form.annualKwh === "number" ? form.annualKwh : undefined,
+        annualTherms: typeof form.annualTherms === "number" ? form.annualTherms : undefined,
+        householdIncome: undefined, // we collect range, not exact
+        amiBracket: "unknown" as const,
+        hasExistingSolar: false,
+        hasEv: false,
+        roofAge: typeof form.roofAge === "number" ? form.roofAge : undefined,
+        notes: form.insulationConcerns || undefined,
+        photoUrls: [],
+        utilityBillUrls: [],
+
+        // v2 extras (server stores in intake_v2 JSONB)
+        intake_v2: {
+          address: form.address || null,
+          city: form.city || null,
+          county: county?.name ?? null,
+          home_type: form.homeType,
+          ownership_status: form.ownership,
+          occupants: form.occupants,
+          current_supplier_known: form.currentSupplierKnown,
+          current_supplier_name: form.currentSupplierName || null,
+          average_monthly_bill:
+            typeof form.averageMonthlyBill === "number"
+              ? form.averageMonthlyBill
+              : null,
+          cooling_type: form.coolingType || null,
+          water_heater_type: form.waterHeaterType || null,
+          water_heater_age:
+            typeof form.waterHeaterAge === "number" ? form.waterHeaterAge : null,
+          has_smart_thermostat: form.hasSmartThermostat,
+          insulation_concerns: form.insulationConcerns || null,
+          window_condition: form.windowCondition || null,
+          goals: form.goals,
+          household_size:
+            typeof form.householdSize === "number" ? form.householdSize : null,
+          income_range: form.incomeRange || null,
+          assistance_programs: form.assistancePrograms,
+          consent_generate_plan: form.consentGeneratePlan,
+          consent_store_documents: form.consentStoreDocuments,
+          consent_contact: form.consentContact,
+          submitted_at: new Date().toISOString(),
+        },
+      };
+
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || "Failed to save assessment.");
+        setSubmitting(false);
+        return;
+      }
+      const planSnapshot = {
+        assessmentId: data.id,
+        address: form.address || null,
+        zip: form.zip,
+        city: form.city || null,
+        county: county?.name ?? null,
+        state: resolved?.state ?? null,
+        electricUtilityId: form.electricUtilityId || null,
+        gasUtilityId: form.gasUtilityId || null,
+        homeType: form.homeType || null,
+        ownershipStatus: form.ownership || null,
+        yearBuilt: form.yearBuilt,
+        squareFeet: form.squareFootage,
+        occupants: form.occupants,
+        averageMonthlyBill:
+          typeof form.averageMonthlyBill === "number"
+            ? form.averageMonthlyBill
+            : null,
+        annualKwh:
+          typeof form.annualKwh === "number" ? form.annualKwh : null,
+        annualTherms:
+          typeof form.annualTherms === "number" ? form.annualTherms : null,
+        currentSupplierKnown: form.currentSupplierKnown,
+        currentSupplierName: form.currentSupplierName || null,
+        heatingType: form.heatingType || null,
+        coolingType: form.coolingType || null,
+        waterHeaterType: form.waterHeaterType || null,
+        waterHeaterAge:
+          typeof form.waterHeaterAge === "number" ? form.waterHeaterAge : null,
+        hvacAge: typeof form.hvacAge === "number" ? form.hvacAge : null,
+        hasSmartThermostat: form.hasSmartThermostat,
+        insulationConcerns: form.insulationConcerns || null,
+        windowCondition: form.windowCondition || null,
+        roofAge: typeof form.roofAge === "number" ? form.roofAge : null,
+        goals: form.goals,
+        householdSize:
+          typeof form.householdSize === "number" ? form.householdSize : null,
+        incomeRange: form.incomeRange || null,
+        assistancePrograms: form.assistancePrograms,
+        submittedAt: new Date().toISOString(),
+      };
+
+      try {
+        sessionStorage.setItem(
+          GREENBROKER_PLAN_STORAGE_KEY,
+          JSON.stringify(planSnapshot),
+        );
+      } catch {
+        // Session storage is only a convenience for the immediate results page.
+      }
+      // Route to plan with location params so /plan can scope rebates immediately.
+      const params = new URLSearchParams({ zip: form.zip });
+      if (form.electricUtilityId) params.set("electric", form.electricUtilityId);
+      if (form.gasUtilityId) params.set("gas", form.gasUtilityId);
+      if (data.id) params.set("assessment", data.id);
+      router.push(`/plan?${params.toString()}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error.");
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Your Personalized Energy Plan</h1>
-        <p className="text-gray-600 mt-2">
-          Answer a few questions about your home. We&apos;ll calculate your exact savings potential
-          and rebate eligibility — takes about 5 minutes.
-        </p>
-      </div>
-
-      {/* Progress */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          {STEPS.map((s) => (
-            <div
-              key={s.id}
-              className={`flex flex-col items-center gap-1 cursor-pointer ${
-                step >= s.id ? "opacity-100" : "opacity-40"
-              }`}
-              onClick={() => step > s.id && setStep(s.id as Step)}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${
-                  step === s.id
-                    ? "bg-brand-600 text-white shadow-md"
-                    : step > s.id
-                    ? "bg-brand-200 text-brand-700"
-                    : "bg-gray-200 text-gray-500"
-                }`}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
+        {/* Sticky section nav */}
+        <aside className="hidden lg:block sticky top-24 self-start">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Sections
+          </p>
+          <nav className="space-y-1">
+            {SECTIONS.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  sectionRefs.current[s.id]?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg"
               >
-                {step > s.id ? "✓" : s.icon}
-              </div>
-              <span className="text-xs text-gray-500 hidden sm:block">{s.label}</span>
-            </div>
-          ))}
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-brand-600 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      </div>
+                <span>{s.icon}</span>
+                {s.label}
+              </a>
+            ))}
+          </nav>
+          <p className="text-xs text-gray-400 mt-6 leading-relaxed">
+            One form. Takes about 2 minutes. We&apos;ll route to your personalized
+            plan when you finish.
+          </p>
+        </aside>
 
-      {/* Step Content */}
-      <div className="card p-8">
-        {/* Step 1: Home basics */}
-        {step === 1 && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Tell us about your home</h2>
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">ZIP Code</label>
+        <form onSubmit={handleSubmit} className="space-y-10">
+          <header>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Check My Rebates
+            </h1>
+            <p className="text-gray-600">
+              Tell us about your home and goals — we&apos;ll show every rebate you
+              qualify for, calculate net cost, and prepare paperwork.
+            </p>
+          </header>
+
+          {/* A. Home basics */}
+          <Section
+            id="home"
+            title="A. Home basics"
+            icon="🏠"
+            innerRef={(el) => (sectionRefs.current.home = el)}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Street address (optional)" full>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => update("address", e.target.value)}
+                  placeholder="123 Main St"
+                  className={inputCls}
+                  autoComplete="street-address"
+                />
+              </Field>
+              <Field label="ZIP code *">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={form.zip}
+                  onChange={(e) =>
+                    update("zip", e.target.value.replace(/\D/g, "").slice(0, 5))
+                  }
+                  className={inputCls}
+                  autoComplete="postal-code"
+                  required
+                />
+                {form.zip.length === 5 && !resolved && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    We don&apos;t serve this ZIP yet — you can still save your info.
+                  </p>
+                )}
+                {county && (
+                  <p className="text-xs text-emerald-700 mt-1">
+                    ✓ {county.name}, {resolved?.state}
+                  </p>
+                )}
+              </Field>
+              <Field label="City">
+                <input
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="Rockville"
+                  className={inputCls}
+                  autoComplete="address-level2"
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Home type *">
+                <Chips
+                  options={HOME_TYPES}
+                  value={form.homeType}
+                  onChange={(v) => update("homeType", v as HomeType)}
+                />
+              </Field>
+              <Field label="Ownership *">
+                <Chips
+                  options={OWNERSHIP}
+                  value={form.ownership}
+                  onChange={(v) => update("ownership", v as Ownership)}
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Year built">
+                <input
+                  type="number"
+                  value={form.yearBuilt}
+                  onChange={(e) =>
+                    update("yearBuilt", parseInt(e.target.value) || 1985)
+                  }
+                  min={1800}
+                  max={new Date().getFullYear()}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Square feet">
+                <input
+                  type="number"
+                  value={form.squareFootage}
+                  onChange={(e) =>
+                    update("squareFootage", parseInt(e.target.value) || 2000)
+                  }
+                  min={200}
+                  max={20000}
+                  step={50}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Occupants">
+                <input
+                  type="number"
+                  value={form.occupants}
+                  onChange={(e) =>
+                    update("occupants", parseInt(e.target.value) || 3)
+                  }
+                  min={1}
+                  max={20}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {/* B. Utility */}
+          <Section
+            id="utility"
+            title="B. Utility & bill"
+            icon="⚡"
+            innerRef={(el) => (sectionRefs.current.utility = el)}
+          >
+            <Field label="Who delivers your power? *">
+              {county ? (
+                <UtilityPicker
+                  countyId={resolved!.countyId}
+                  electricUtilityId={form.electricUtilityId || undefined}
+                  gasUtilityId={form.gasUtilityId || undefined}
+                  onChange={(next) => {
+                    update("electricUtilityId", next.electricUtilityId ?? "");
+                    update("gasUtilityId", next.gasUtilityId ?? "");
+                  }}
+                />
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Enter a ZIP above first to load utility options.
+                </p>
+              )}
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Do you know your current supplier?">
+                <Chips
+                  options={[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No / Default supply" },
+                  ]}
+                  value={form.currentSupplierKnown ? "yes" : "no"}
+                  onChange={(v) => update("currentSupplierKnown", v === "yes")}
+                />
+              </Field>
+              {form.currentSupplierKnown && (
+                <Field label="Current supplier name">
                   <input
                     type="text"
-                    inputMode="numeric"
-                    maxLength={5}
-                    value={profile.zip || ""}
-                    onChange={(e) => update({ zip: e.target.value.replace(/\D/g, "").slice(0, 5) })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="ZIP code"
+                    value={form.currentSupplierName}
+                    onChange={(e) => update("currentSupplierName", e.target.value)}
+                    placeholder="e.g. Constellation"
+                    className={inputCls}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Year Built</label>
-                  <input
-                    type="number"
-                    value={profile.yearBuilt || ""}
-                    onChange={(e) => update({ yearBuilt: parseInt(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="1985"
-                  />
-                </div>
-              </div>
-
-              {/* Utility-territory picker — required for utility-scoped rebates */}
-              <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
-                <p className="text-sm font-semibold text-gray-700 mb-1">
-                  Who delivers your power?
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  {county
-                    ? `Detected ${county.name}, ${resolved?.state}. EmPOWER and similar rebates are utility-specific — pick yours so we only show what you actually qualify for.`
-                    : "Enter a 5-digit ZIP above to load utility options."}
-                </p>
-                <UtilityPicker
-                  countyId={resolved?.countyId ?? null}
-                  electricUtilityId={profile.electricUtilityId}
-                  gasUtilityId={profile.gasUtilityId}
-                  onChange={(next) =>
-                    update({
-                      electricUtilityId: next.electricUtilityId,
-                      gasUtilityId: next.gasUtilityId,
-                    })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Square Footage: {(profile.squareFootage || 2000).toLocaleString()} sq ft
-                </label>
-                <input
-                  type="range"
-                  min={500}
-                  max={5000}
-                  step={100}
-                  value={profile.squareFootage || 2000}
-                  onChange={(e) => update({ squareFootage: parseInt(e.target.value) })}
-                  className="w-full accent-brand-600"
-                />
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>500 sq ft</span>
-                  <span>5,000 sq ft</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Bedrooms</label>
-                  <select
-                    value={profile.bedrooms || 3}
-                    onChange={(e) => update({ bedrooms: parseInt(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Do you own the home?</label>
-                  <div className="flex gap-3 mt-1">
-                    {["Yes", "No"].map((opt) => (
-                      <button
-                        key={opt}
-                        className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                          opt === "Yes"
-                            ? "border-brand-500 bg-brand-50 text-brand-700"
-                            : "border-gray-200 text-gray-600"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                </Field>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Step 2: Energy systems */}
-        {step === 2 && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Current energy systems</h2>
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Primary heating fuel
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: "gas", label: "🔥 Natural Gas", sub: "Washington Gas" },
-                    { value: "electric", label: "⚡ Electric", sub: "Heat pump or resistance" },
-                    { value: "oil", label: "🛢️ Oil", sub: "Fuel oil" },
-                    { value: "propane", label: "🔵 Propane", sub: "Propane tank" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update({ primaryHeatingFuel: opt.value as any, hasGas: opt.value === "gas" })}
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        profile.primaryHeatingFuel === opt.value
-                          ? "border-brand-500 bg-brand-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{opt.sub}</div>
-                    </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Field label="Average monthly bill ($)">
+                <input
+                  type="number"
+                  value={form.averageMonthlyBill}
+                  onChange={(e) =>
+                    update(
+                      "averageMonthlyBill",
+                      e.target.value === "" ? "" : parseFloat(e.target.value)
+                    )
+                  }
+                  min={0}
+                  step={5}
+                  className={inputCls}
+                  placeholder="200"
+                />
+              </Field>
+              <Field label="Annual kWh (optional)">
+                <input
+                  type="number"
+                  value={form.annualKwh}
+                  onChange={(e) =>
+                    update(
+                      "annualKwh",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={0}
+                  step={100}
+                  className={inputCls}
+                  placeholder="11000"
+                />
+              </Field>
+              <Field label="Annual therms (optional)">
+                <input
+                  type="number"
+                  value={form.annualTherms}
+                  onChange={(e) =>
+                    update(
+                      "annualTherms",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={0}
+                  step={10}
+                  className={inputCls}
+                  placeholder="940"
+                />
+              </Field>
+            </div>
+
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Bill upload coming soon — for now, your annual usage is enough for an
+              accurate estimate. We&apos;ll show ranges and tighten them as you add data.
+            </p>
+          </Section>
+
+          {/* C. Equipment */}
+          <Section
+            id="equipment"
+            title="C. Existing equipment"
+            icon="🛠️"
+            innerRef={(el) => (sectionRefs.current.equipment = el)}
+          >
+            <Field label="Heating *">
+              <Chips
+                options={HEATING}
+                value={form.heatingType}
+                onChange={(v) => update("heatingType", v as HeatingType)}
+              />
+            </Field>
+            <Field label="Cooling">
+              <Chips
+                options={COOLING}
+                value={form.coolingType}
+                onChange={(v) => update("coolingType", v as CoolingType)}
+              />
+            </Field>
+            <Field label="Water heater">
+              <Chips
+                options={WATER_HEATERS}
+                value={form.waterHeaterType}
+                onChange={(v) => update("waterHeaterType", v as WaterHeaterType)}
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <Field label="HVAC age (years)">
+                <input
+                  type="number"
+                  value={form.hvacAge}
+                  onChange={(e) =>
+                    update(
+                      "hvacAge",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={0}
+                  max={60}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Water heater age">
+                <input
+                  type="number"
+                  value={form.waterHeaterAge}
+                  onChange={(e) =>
+                    update(
+                      "waterHeaterAge",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={0}
+                  max={50}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Roof age">
+                <input
+                  type="number"
+                  value={form.roofAge}
+                  onChange={(e) =>
+                    update(
+                      "roofAge",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={0}
+                  max={60}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+
+            <div className="space-y-3">
+              <CheckRow
+                label="I already have a smart thermostat"
+                checked={form.hasSmartThermostat}
+                onChange={(v) => update("hasSmartThermostat", v)}
+              />
+            </div>
+
+            <Field label="Insulation concerns (optional)">
+              <textarea
+                rows={2}
+                value={form.insulationConcerns}
+                onChange={(e) => update("insulationConcerns", e.target.value)}
+                placeholder="e.g. attic feels under-insulated, basement walls bare"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Window condition (optional)">
+              <input
+                type="text"
+                value={form.windowCondition}
+                onChange={(e) => update("windowCondition", e.target.value)}
+                placeholder="e.g. original single-pane / double-pane / mostly replaced"
+                className={inputCls}
+              />
+            </Field>
+          </Section>
+
+          {/* D. Goals */}
+          <Section
+            id="goals"
+            title="D. Goals"
+            icon="🎯"
+            innerRef={(el) => (sectionRefs.current.goals = el)}
+          >
+            <p className="text-sm text-gray-500 -mt-2">
+              Select all that apply. We use these to rank upgrade recommendations.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {GOALS.map((g) => {
+                const checked = form.goals.includes(g.value);
+                return (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() =>
+                      update(
+                        "goals",
+                        checked
+                          ? form.goals.filter((x) => x !== g.value)
+                          : [...form.goals, g.value]
+                      )
+                    }
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left text-sm transition-all ${
+                      checked
+                        ? "border-brand-500 bg-brand-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="text-xl">{g.icon}</span>
+                    <span className="font-medium text-gray-900">{g.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* E. Eligibility */}
+          <Section
+            id="eligibility"
+            title="E. Eligibility"
+            icon="👥"
+            innerRef={(el) => (sectionRefs.current.eligibility = el)}
+          >
+            <p className="text-sm text-gray-500 -mt-2">
+              Used only to show income-qualified rebates (HEEHRA, MSAP, Green Bank
+              loan). We never share this with anyone.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Household size">
+                <input
+                  type="number"
+                  value={form.householdSize}
+                  onChange={(e) =>
+                    update(
+                      "householdSize",
+                      e.target.value === "" ? "" : parseInt(e.target.value)
+                    )
+                  }
+                  min={1}
+                  max={20}
+                  placeholder="3"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Annual household income">
+                <select
+                  value={form.incomeRange}
+                  onChange={(e) =>
+                    update("incomeRange", e.target.value as IncomeRange)
+                  }
+                  className={inputCls}
+                >
+                  <option value="">Select range…</option>
+                  {INCOME_RANGES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
                   ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Current HVAC system type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: "central-ac-gas-furnace", label: "Central AC + Gas Furnace" },
-                    { value: "heat-pump", label: "Heat Pump (existing)" },
-                    { value: "window-ac", label: "Window AC" },
-                    { value: "boiler", label: "Boiler (steam/hot water)" },
-                  ].map((opt) => (
+                </select>
+              </Field>
+            </div>
+            <Field label="Receives any of these (optional)">
+              <div className="flex flex-wrap gap-2">
+                {ASSISTANCE.map((a) => {
+                  const checked = form.assistancePrograms.includes(a.value);
+                  return (
                     <button
-                      key={opt.value}
-                      onClick={() => update({ currentHvacType: opt.value as any })}
-                      className={`p-3 rounded-xl border-2 text-left text-sm transition-all ${
-                        profile.currentHvacType === opt.value
-                          ? "border-brand-500 bg-brand-50 font-semibold text-brand-800"
+                      key={a.value}
+                      type="button"
+                      onClick={() =>
+                        update(
+                          "assistancePrograms",
+                          checked
+                            ? form.assistancePrograms.filter((x) => x !== a.value)
+                            : [...form.assistancePrograms, a.value]
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full border text-xs font-medium ${
+                        checked
+                          ? "border-brand-500 bg-brand-50 text-brand-800"
                           : "border-gray-200 text-gray-600 hover:border-gray-300"
                       }`}
                     >
-                      {opt.label}
+                      {a.label}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+            </Field>
+          </Section>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    How old is your HVAC? (years)
-                  </label>
-                  <input
-                    type="number"
-                    value={profile.hvacAge || ""}
-                    onChange={(e) => update({ hvacAge: parseInt(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="e.g. 12"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Electrical panel size
-                  </label>
-                  <select
-                    value={profile.electricPanel || 200}
-                    onChange={(e) => update({ electricPanel: parseInt(e.target.value) as any })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value={100}>100 amp</option>
-                    <option value={150}>150 amp</option>
-                    <option value={200}>200 amp</option>
-                    <option value={400}>400 amp</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "Have solar?", key: "hasExistingSolar" },
-                  { label: "Have EV?", key: "hasEv" },
-                ].map((item) => (
-                  <div key={item.key}>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{item.label}</label>
-                    <div className="flex gap-2">
-                      {["Yes", "No"].map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => update({ [item.key]: opt === "Yes" } as any)}
-                          className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                            (profile[item.key as keyof HomeProfile] === true && opt === "Yes") ||
-                            (profile[item.key as keyof HomeProfile] === false && opt === "No")
-                              ? "border-brand-500 bg-brand-50 text-brand-700"
-                              : "border-gray-200 text-gray-600"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Usage & Bills */}
-        {step === 3 && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Energy usage & bills</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Optional but improves accuracy. Check your PEPCO and Washington Gas bills, or use our estimates.
+          {/* F. Consent */}
+          <Section
+            id="consent"
+            title="F. Consent"
+            icon="✓"
+            innerRef={(el) => (sectionRefs.current.consent = el)}
+          >
+            <CheckRow
+              label="Generate my personalized energy plan from this intake *"
+              checked={form.consentGeneratePlan}
+              onChange={(v) => update("consentGeneratePlan", v)}
+            />
+            <CheckRow
+              label="Store any documents I upload (utility bills, photos) so I can come back later"
+              checked={form.consentStoreDocuments}
+              onChange={(v) => update("consentStoreDocuments", v)}
+            />
+            <CheckRow
+              label="Contact me with rebate updates and program changes (optional)"
+              checked={form.consentContact}
+              onChange={(v) => update("consentContact", v)}
+            />
+            <p className="text-xs text-gray-500 leading-relaxed mt-2">
+              We don&apos;t auto-submit rebate forms or auto-switch energy suppliers.
+              Anything that goes out goes through your review first.
             </p>
-            <div className="space-y-5">
-              <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-                <strong>Estimates for your home size ({profile.squareFootage?.toLocaleString()} sq ft, {profile.yearBuilt}):</strong>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div>Annual electricity: ~{Math.round((profile.squareFootage || 2000) * 5.5).toLocaleString()} kWh</div>
-                  <div>Annual gas: ~{Math.round((profile.squareFootage || 2000) * 0.47)} therms</div>
-                </div>
-              </div>
+          </Section>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Annual electricity usage (kWh) — leave blank to use estimate
-                </label>
-                <input
-                  type="number"
-                  value={profile.annualKwh || ""}
-                  onChange={(e) => update({ annualKwh: parseInt(e.target.value) || undefined })}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder={`~${Math.round((profile.squareFootage || 2000) * 5.5).toLocaleString()} kWh (estimated)`}
-                />
-              </div>
-
-              {profile.hasGas && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Annual gas usage (therms) — leave blank to use estimate
-                  </label>
-                  <input
-                    type="number"
-                    value={profile.annualTherms || ""}
-                    onChange={(e) => update({ annualTherms: parseInt(e.target.value) || undefined })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder={`~${Math.round((profile.squareFootage || 2000) * 0.47)} therms (estimated)`}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Roof details (for solar estimate)
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: "south", label: "⬆️ South-facing (best)" },
-                    { value: "east-west", label: "↔️ East/West" },
-                    { value: "flat", label: "⬜ Flat roof" },
-                    { value: "north", label: "⬇️ North-facing" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update({ roofOrientation: opt.value as any })}
-                      className={`p-3 rounded-xl border-2 text-sm text-left transition-all ${
-                        profile.roofOrientation === opt.value
-                          ? "border-brand-500 bg-brand-50 font-semibold text-brand-800"
-                          : "border-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Household Income */}
-        {step === 4 && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Household information</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Income determines eligibility for several programs (MSAP solar, HEEHRA, Green Bank loan).
-              This information is never shared and only used to calculate your rebate eligibility.
-            </p>
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Annual household income (approximate)
-                </label>
-                <div className="space-y-2">
-                  {[
-                    { label: "Under $87,000 (below 80% AMI)", value: 75000, bracket: "below-80" as AMIBracket },
-                    { label: "$87,000–$163,000 (80–150% AMI)", value: 120000, bracket: "80-150" as AMIBracket },
-                    { label: "Over $163,000 (above 150% AMI)", value: 200000, bracket: "above-150" as AMIBracket },
-                    { label: "Prefer not to say", value: 0, bracket: "unknown" as AMIBracket },
-                  ].map((opt) => (
-                    <button
-                      key={opt.bracket}
-                      onClick={() => update({ householdIncome: opt.value, amiBracket: opt.bracket })}
-                      className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                        profile.amiBracket === opt.bracket
-                          ? "border-brand-500 bg-brand-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="font-medium text-sm text-gray-900">{opt.label}</div>
-                      {opt.bracket !== "unknown" && (
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {opt.bracket === "below-80"
-                            ? "Qualifies for MSAP solar, HEEHRA, Green Bank loan"
-                            : opt.bracket === "80-150"
-                            ? "Qualifies for MSAP solar, 50% HEEHRA, Green Bank loan"
-                            : "Qualifies for EmPOWER, Electrify MC, RCES (no income limit)"}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  How urgent is your HVAC replacement?
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "My system died", urgency: "critical" },
-                    { label: "It's on its way out", urgency: "planning" },
-                    { label: "Just exploring", urgency: "exploring" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.urgency}
-                      className="p-3 rounded-xl border-2 border-gray-200 text-sm text-gray-600 hover:border-gray-300 transition-all"
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Results */}
-        {step === 5 && results && (
-          <div>
-            <div className="text-center mb-8">
-              <div className="text-5xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Plan</h2>
-              <p className="text-gray-500">
-                Based on your {profile.squareFootage?.toLocaleString()} sq ft,{" "}
-                {profile.yearBuilt} home{county ? ` in ${county.name}` : ""}
+          {/* Submit */}
+          <div className="border-t border-gray-200 pt-6 sticky bottom-0 bg-white pb-4">
+            {error && (
+              <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">
+                {error}
               </p>
-            </div>
-
-            {/* Current annual cost */}
-            <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center">
-              <div className="text-sm text-gray-500 mb-1">Estimated current annual energy cost</div>
-              <div className="text-4xl font-bold text-gray-900">
-                {formatCurrency(results.currentAnnualCost)}
-              </div>
-              <div className="text-sm text-gray-400 mt-1">electricity + gas</div>
-            </div>
-
-            {/* Savings by upgrade */}
-            <div className="space-y-4 mb-8">
-              <h3 className="font-bold text-gray-900">Your savings opportunities</h3>
-
-              {[
-                {
-                  icon: "💡",
-                  label: "LED Lighting (do first)",
-                  savings: formatCurrency(results.ledSavings.annualDollarsSaved) + "/yr",
-                  cost: formatCurrency(results.ledSavings.investmentCost),
-                  payback: results.ledSavings.paybackMonths.toFixed(1) + " months",
-                  badge: "Best ROI",
-                  badgeColor: "green",
-                },
-                {
-                  icon: "☀️",
-                  label: "Solar System",
-                  savings: formatCurrency(results.solarSavings.totalAnnualValue) + "/yr",
-                  cost: formatCurrency(results.solarSavings.grossSystemCost),
-                  payback: results.solarSavings.simplePaybackYears.toFixed(1) + " years",
-                  badge: "Best Standalone",
-                  badgeColor: "amber",
-                },
-                {
-                  icon: "💧",
-                  label: "Heat Pump Water Heater",
-                  savings: formatCurrency(results.hpwhSavings.annualSavings) + "/yr",
-                  cost: formatCurrency(results.hpwhSavings.netInvestmentAfterRebates) + " after rebates",
-                  payback: results.hpwhSavings.paybackYears.toFixed(1) + " years",
-                  badge: "$2,100 rebates",
-                  badgeColor: "blue",
-                },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between card p-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">{item.icon}</span>
-                    <div>
-                      <div className="font-semibold text-gray-900 text-sm">{item.label}</div>
-                      <div className="text-xs text-gray-500">
-                        Cost: {item.cost} · Payback: {item.payback}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-brand-600">{item.savings}</div>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        item.badgeColor === "green"
-                          ? "bg-green-100 text-green-800"
-                          : item.badgeColor === "amber"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Estimated rebates */}
-            <div className="bg-brand-50 border border-brand-200 rounded-2xl p-6 mb-6">
-              <div className="text-sm text-brand-700 font-semibold mb-1">
-                Estimated available rebates for your household
-              </div>
-              <div className="text-3xl font-bold text-brand-700">
-                {formatCurrency(results.estimatedRebatesAvailable)}
-              </div>
-              <div className="text-xs text-brand-600 mt-1">
-                {profile.amiBracket === "below-80" || profile.amiBracket === "80-150"
-                  ? "Includes income-qualified programs (MSAP, HEEHRA pending)"
-                  : "Based on EmPOWER, Electrify MC, and RCES (no income limit)"}
-              </div>
-            </div>
-
-            {/* Next steps */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-gray-900">Recommended next steps</h3>
-              {[
-                { label: "Find vetted contractors", href: "/contractors", icon: "👷" },
-                { label: "Explore all rebates", href: "/rebates", icon: "💰" },
-                { label: "Compare products", href: "/products", icon: "📊" },
-              ].map((item, i) => (
-                <Link
-                  key={i}
-                  href={item.href}
-                  className="flex items-center justify-between card p-4 hover:border-brand-300 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="font-semibold text-gray-900 group-hover:text-brand-700 text-sm">
-                      {item.label}
-                    </span>
-                  </div>
-                  <span className="text-brand-600 group-hover:translate-x-1 transition-transform">→</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Navigation Buttons */}
-        {step < 5 && (
-          <div className="flex justify-between mt-8 pt-6 border-t border-gray-100">
-            {step > 1 ? (
-              <button
-                onClick={() => setStep((s) => (s - 1) as Step)}
-                className="btn-secondary py-3 px-6 text-sm"
-              >
-                ← Back
-              </button>
-            ) : (
-              <div />
             )}
-            {step < 4 ? (
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <p className="text-xs text-gray-500">
+                {blockers.length === 0
+                  ? "Looks good — ready to generate your plan."
+                  : `Still need: ${blockers.join(", ")}`}
+              </p>
               <button
-                onClick={() => setStep((s) => (s + 1) as Step)}
-                className="btn-primary py-3 px-6 text-sm"
+                type="submit"
+                disabled={submitting || blockers.length > 0}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-base py-3 px-6"
               >
-                Continue →
+                {submitting ? "Generating plan…" : "Generate my energy plan →"}
               </button>
-            ) : (
-              <button onClick={handleFinish} className="btn-primary py-3 px-6 text-sm">
-                See My Plan →
-              </button>
-            )}
+            </div>
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              Or{" "}
+              <Link href="/" className="underline hover:text-gray-600">
+                back to homepage
+              </Link>
+            </p>
           </div>
-        )}
+        </form>
       </div>
     </div>
   );
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function mapHeatingFuel(h: HeatingType | ""): "gas" | "electric" | "oil" | "propane" {
+  switch (h) {
+    case "gas_furnace":
+      return "gas";
+    case "electric_resistance":
+    case "heat_pump":
+      return "electric";
+    case "oil":
+      return "oil";
+    case "propane":
+      return "propane";
+    default:
+      return "gas";
+  }
+}
+
+function mapHvacType(
+  h: HeatingType | "",
+  c: CoolingType | ""
+): "central-ac-gas-furnace" | "heat-pump" | "window-ac" | "boiler" | "mini-split" {
+  if (h === "heat_pump" || c === "heat_pump") return "heat-pump";
+  if (c === "window_units") return "window-ac";
+  if (h === "oil" || h === "propane") return "boiler";
+  return "central-ac-gas-furnace";
+}
+
+const inputCls =
+  "w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
+
+function Section({
+  id,
+  title,
+  icon,
+  children,
+  innerRef,
+}: {
+  id: string;
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+  innerRef: (el: HTMLDivElement | null) => void;
+}) {
+  return (
+    <section id={id} ref={innerRef} className="card p-6 scroll-mt-24">
+      <header className="flex items-center gap-3 mb-5">
+        <span className="text-2xl">{icon}</span>
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+      </header>
+      <div className="space-y-5">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  children,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return (
+    <label className={`block ${full ? "sm:col-span-2" : ""}`}>
+      <span className="block text-xs font-semibold text-gray-700 mb-1">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Chips({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+            value === o.value
+              ? "border-brand-500 bg-brand-50 text-brand-800"
+              : "border-gray-200 text-gray-600 hover:border-gray-300"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CheckRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+      />
+      <span className="text-gray-700 leading-snug">{label}</span>
+    </label>
+  );
+}
+
 export default function IntakePage() {
   return (
-    <Suspense fallback={<div className="max-w-3xl mx-auto px-4 py-12">Loading…</div>}>
-      <IntakeBody />
+    <Suspense
+      fallback={<div className="max-w-3xl mx-auto px-4 py-12">Loading…</div>}
+    >
+      <IntakeForm />
     </Suspense>
   );
 }

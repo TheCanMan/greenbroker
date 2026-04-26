@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import { AssessmentSchema } from "@/lib/validations/assessment";
 import { rateLimit, getClientIp, RATE_LIMITS } from "@/lib/ratelimit";
@@ -8,6 +8,19 @@ import { calcPersonalizedSavings, determineAMIBracket } from "@/lib/calculations
 import { resolveZip } from "@/lib/geo/zip-lookup";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type AssessmentInsert = Database["public"]["Tables"]["home_assessments"]["Insert"];
+
+function isMissingIntakeV2Column(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { code?: string; message?: string; details?: string };
+  const text = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+
+  return (
+    err.code === "42703" ||
+    text.includes("intake_v2") ||
+    text.includes("schema cache")
+  );
+}
 
 // POST /api/assessments — save a homeowner intake assessment
 export async function POST(request: NextRequest) {
@@ -63,48 +76,75 @@ export async function POST(request: NextRequest) {
     const savings = calcPersonalizedSavings(profileInput as any);
 
     // ─── Insert to DB ─────────────────────────────────────────────────────────
-    const { data: assessment, error } = await supabase
+    const resolvedZip = resolveZip(data.zip);
+    const now = new Date().toISOString();
+    const insertPayload: AssessmentInsert = {
+      id: crypto.randomUUID(),
+      profile_id: profileId,
+      zip: data.zip,
+      // Resolve location at write time so reads stay fast and don't need
+      // to re-run zip-lookup on every dashboard render.
+      state: resolvedZip?.state ?? null,
+      county_id: resolvedZip?.countyId ?? null,
+      electric_utility_id: data.electricUtilityId ?? null,
+      gas_utility_id: data.gasUtilityId ?? null,
+      square_footage: data.squareFootage,
+      year_built: data.yearBuilt,
+      bedrooms: data.bedrooms,
+      bathrooms: data.bathrooms ?? null,
+      primary_heating_fuel: data.primaryHeatingFuel,
+      current_hvac_type: data.currentHvacType,
+      hvac_age: data.hvacAge ?? null,
+      has_gas: data.hasGas,
+      electric_panel_amps: data.electricPanelAmps ?? null,
+      roof_orientation: data.roofOrientation ?? null,
+      roof_age: data.roofAge ?? null,
+      annual_kwh: data.annualKwh ?? null,
+      annual_therms: data.annualTherms ?? null,
+      household_income: data.householdIncome ?? null,
+      ami_bracket: amiBracket,
+      has_existing_solar: data.hasExistingSolar,
+      has_ev: data.hasEv,
+      urgency: data.urgency ?? null,
+      notes: data.notes ?? null,
+      photo_urls: data.photoUrls ?? [],
+      utility_bill_urls: data.utilityBillUrls ?? [],
+      // Phase-2 intake — full blob in JSONB. Promote individual fields to
+      // their own columns when we actually need to query/index them.
+      intake_v2: data.intake_v2 ?? null,
+      // Supabase SQL migrations do not define DB-side defaults for these text
+      // IDs/timestamps, so route handlers must provide them explicitly.
+      created_at: now,
+      updated_at: now,
+      // Calculated outputs
+      calc_annual_energy_cost: savings.currentAnnualCost,
+      calc_savings_potential:
+        savings.ledSavings.annualDollarsSaved +
+        savings.solarSavings.totalAnnualValue +
+        savings.hpwhSavings.annualSavings,
+      calc_available_rebates: savings.estimatedRebatesAvailable,
+    };
+
+    const writeClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : supabase;
+
+    let insertResult = await writeClient
       .from("home_assessments")
-      .insert({
-        profile_id: profileId,
-        zip: data.zip,
-        // Resolve location at write time so reads stay fast and don't need
-        // to re-run zip-lookup on every dashboard render.
-        state: resolveZip(data.zip)?.state ?? null,
-        county_id: resolveZip(data.zip)?.countyId ?? null,
-        electric_utility_id: data.electricUtilityId ?? null,
-        gas_utility_id: data.gasUtilityId ?? null,
-        square_footage: data.squareFootage,
-        year_built: data.yearBuilt,
-        bedrooms: data.bedrooms,
-        bathrooms: data.bathrooms ?? null,
-        primary_heating_fuel: data.primaryHeatingFuel,
-        current_hvac_type: data.currentHvacType,
-        hvac_age: data.hvacAge ?? null,
-        has_gas: data.hasGas,
-        electric_panel_amps: data.electricPanelAmps ?? null,
-        roof_orientation: data.roofOrientation ?? null,
-        roof_age: data.roofAge ?? null,
-        annual_kwh: data.annualKwh ?? null,
-        annual_therms: data.annualTherms ?? null,
-        household_income: data.householdIncome ?? null,
-        ami_bracket: amiBracket,
-        has_existing_solar: data.hasExistingSolar,
-        has_ev: data.hasEv,
-        urgency: data.urgency ?? null,
-        notes: data.notes ?? null,
-        photo_urls: data.photoUrls ?? [],
-        utility_bill_urls: data.utilityBillUrls ?? [],
-        // Calculated outputs
-        calc_annual_energy_cost: savings.currentAnnualCost,
-        calc_savings_potential:
-          savings.ledSavings.annualDollarsSaved +
-          savings.solarSavings.totalAnnualValue +
-          savings.hpwhSavings.annualSavings,
-        calc_available_rebates: savings.estimatedRebatesAvailable,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    if (insertResult.error && isMissingIntakeV2Column(insertResult.error)) {
+      const { intake_v2: _intakeV2, ...legacyPayload } = insertPayload;
+      insertResult = await writeClient
+        .from("home_assessments")
+        .insert(legacyPayload)
+        .select()
+        .single();
+    }
+
+    const { data: assessment, error } = insertResult;
 
     if (error) {
       console.error("Assessment insert error:", error);

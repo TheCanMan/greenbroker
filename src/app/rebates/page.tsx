@@ -5,9 +5,59 @@ import { resolveZip } from "@/lib/geo/zip-lookup";
 import { COUNTY_BY_ID, UTILITY_BY_ID } from "@/lib/geo/registry";
 import { findRebatesFor } from "@/lib/geo/eligibility";
 import { LocationPicker } from "@/components/geo/LocationPicker";
+import type { Rebate } from "@/lib/types";
 
 interface PageProps {
   searchParams: Promise<{ zip?: string; electric?: string; gas?: string }>;
+}
+
+function formatUpgradeType(value: string): string {
+  return value
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatTerritory(rebate: Rebate): string {
+  if (rebate.territoryLabel) return rebate.territoryLabel;
+  if (rebate.scopes.length === 0) return "All eligible customers";
+
+  return rebate.scopes
+    .map((scope) => {
+      if (scope.kind === "state") return scope.stateCode;
+      if (scope.kind === "county") return scope.countyIds.join(", ");
+      if (scope.kind === "utility") return scope.utilityIds.join(", ");
+      return "Federal";
+    })
+    .join(" + ");
+}
+
+function applicationTiming(rebate: Rebate): string {
+  const timing =
+    rebate.applicationTiming ??
+    (rebate.type === "discount"
+      ? "instant"
+      : rebate.requiresMEAContractor
+        ? "contractor_submitted"
+        : rebate.requiresAudit
+          ? "before_install"
+          : "after_install");
+
+  return timing.replaceAll("_", " ");
+}
+
+function documentsNeeded(rebate: Rebate): string[] {
+  if (rebate.documentsNeeded?.length) return rebate.documentsNeeded;
+
+  return [
+    "Proof of address and utility territory",
+    rebate.requiresAudit && "Home Performance assessment",
+    rebate.requiresMEAContractor && "Participating contractor quote or invoice",
+    rebate.incomeQualified && "Income qualification documentation",
+    rebate.applicableCategories.some((category) =>
+      ["heat-pump", "water-heater", "smart-thermostat", "battery-storage"].includes(category),
+    ) && "Equipment model number",
+    "Proof of purchase or final invoice",
+  ].filter((item): item is string => Boolean(item));
 }
 
 export default async function RebatesPage({ searchParams }: PageProps) {
@@ -202,6 +252,33 @@ export default async function RebatesPage({ searchParams }: PageProps) {
                   </div>
                   <div className="text-xs text-gray-500 mb-2">Admin: {rebate.administrator}</div>
                   <p className="text-sm text-gray-600 leading-relaxed">{rebate.description}</p>
+                  <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <InfoCell label="Territory" value={formatTerritory(rebate)} />
+                    <InfoCell
+                      label="Eligible upgrades"
+                      value={rebate.applicableCategories.map(formatUpgradeType).join(", ")}
+                    />
+                    <InfoCell
+                      label="Application timing"
+                      value={applicationTiming(rebate)}
+                    />
+                    <InfoCell
+                      label="Requires contractor"
+                      value={rebate.requiresMEAContractor || rebate.requiresAudit ? "Yes" : "No"}
+                    />
+                    <InfoCell
+                      label="Income qualification"
+                      value={rebate.incomeQualified ? "Required" : "Not required"}
+                    />
+                    <InfoCell
+                      label="Last verified"
+                      value={rebate.lastVerified ?? "April 2026"}
+                    />
+                  </dl>
+                  <div className="mt-3 text-xs text-gray-500">
+                    <strong>Documents needed:</strong>{" "}
+                    {documentsNeeded(rebate).join(", ")}
+                  </div>
                   {rebate.notes && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mt-2">
                       📌 {rebate.notes}
@@ -232,6 +309,12 @@ export default async function RebatesPage({ searchParams }: PageProps) {
                     className="inline-block mt-2 text-brand-600 hover:text-brand-700 text-sm font-medium underline"
                   >
                     Learn more →
+                  </a>
+                  <a
+                    href={`/intake?rebate=${rebate.id}`}
+                    className="block mt-2 btn-primary text-center text-sm py-2 px-3"
+                  >
+                    Check if I qualify
                   </a>
                 </div>
               </div>
@@ -274,6 +357,15 @@ export default async function RebatesPage({ searchParams }: PageProps) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-semibold text-gray-500">{label}</dt>
+      <dd className="mt-0.5 text-gray-800 capitalize">{value}</dd>
     </div>
   );
 }

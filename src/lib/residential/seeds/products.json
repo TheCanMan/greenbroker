@@ -1,0 +1,34 @@
+[
+  {
+    "product_name": "Example Heat Pump Water Heater",
+    "brand": "Example",
+    "category": "heat pump water heaters",
+    "energy_star_certified": true,
+    "efficiency_metric": "UEF 3.5+",
+    "estimated_price": "$1,500-$2,800",
+    "eligible_rebates": ["Pepco Heat Pump Water Heater"],
+    "affiliate_url": null,
+    "retailer": "Program-dependent",
+    "model_number": "VERIFY-MODEL",
+    "warranty": "Varies by manufacturer",
+    "installation_required": true,
+    "best_for": "Homes replacing electric or gas tank water heaters",
+    "ranking_score": 88
+  },
+  {
+    "product_name": "Example Smart Thermostat",
+    "brand": "Example",
+    "category": "smart thermostats",
+    "energy_star_certified": true,
+    "efficiency_metric": "ENERGY STAR certified",
+    "estimated_price": "$100-$250",
+    "eligible_rebates": ["Pepco Smart Thermostat"],
+    "affiliate_url": null,
+    "retailer": "Program-dependent",
+    "model_number": "VERIFY-MODEL",
+    "warranty": "Varies by manufacturer",
+    "installation_required": false,
+    "best_for": "Fast-payback controls upgrade",
+    "ranking_score": 82
+  }
+]

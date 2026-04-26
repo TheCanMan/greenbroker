@@ -1,0 +1,30 @@
+[
+  {
+    "supplier_name": "Example Fixed Saver",
+    "license_number": "MOCK-001",
+    "commodity": "electricity",
+    "rate": 0.1099,
+    "fixed_or_variable": "fixed",
+    "term_months": 12,
+    "monthly_fee": 0,
+    "early_termination_fee": 0,
+    "renewable_percent": 0,
+    "estimated_annual_savings": 110,
+    "risk_score": 8,
+    "warnings": []
+  },
+  {
+    "supplier_name": "Example Intro Variable",
+    "license_number": "MOCK-002",
+    "commodity": "electricity",
+    "rate": 0.1599,
+    "fixed_or_variable": "intro_then_variable",
+    "term_months": 0,
+    "monthly_fee": 5.95,
+    "early_termination_fee": 0,
+    "renewable_percent": 0,
+    "estimated_annual_savings": -480,
+    "risk_score": 70,
+    "warnings": ["Teaser intro rate", "Variable rate after intro", "Monthly fee"]
+  }
+]

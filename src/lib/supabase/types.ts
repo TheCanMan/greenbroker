@@ -81,6 +81,7 @@ export interface Database {
           calc_available_rebates: number | null;
           photo_urls: string[];
           utility_bill_urls: string[];
+          intake_v2: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -116,6 +117,7 @@ export interface Database {
           calc_available_rebates?: number | null;
           photo_urls?: string[];
           utility_bill_urls?: string[];
+          intake_v2?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -151,6 +153,7 @@ export interface Database {
           calc_available_rebates?: number | null;
           photo_urls?: string[];
           utility_bill_urls?: string[];
+          intake_v2?: Json | null;
           created_at?: string;
           updated_at?: string;
         };

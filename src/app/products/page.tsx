@@ -48,10 +48,80 @@ const PRODUCT_CATEGORIES = [
     title: "Smart Thermostats",
     icon: "🏠",
     description: "Fastest payback of any HVAC accessory. ecobee Premium saves ~$250/year.",
-    topRebate: "$100 PEPCO rebate — essentially free",
+    topRebate: "$100 PEPCO rebate may be available depending on program rules",
     count: SMART_THERMOSTATS.length,
     topProduct: SMART_THERMOSTATS[0],
     href: "/products/smart-thermostats",
+  },
+  {
+    id: "refrigerators",
+    title: "Refrigerators",
+    icon: "❄️",
+    description: "Replace old secondary units first; retirement programs can matter more than buying new.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
+  },
+  {
+    id: "dryers",
+    title: "Heat Pump Dryers",
+    icon: "🧺",
+    description: "A lower-energy laundry upgrade, especially useful when moving away from gas appliances.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
+  },
+  {
+    id: "induction",
+    title: "Induction Ranges",
+    icon: "🍳",
+    description: "A cooking electrification option that may need electrical work before installation.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
+  },
+  {
+    id: "windows-doors",
+    title: "Windows & Doors",
+    icon: "🪟",
+    description: "Comfort-focused envelope upgrades; rebate eligibility often depends on full project scope.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
+  },
+  {
+    id: "insulation",
+    title: "Insulation",
+    icon: "🏡",
+    description: "Usually best evaluated through a Home Performance assessment and contractor scope.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
+  },
+  {
+    id: "hvac-systems",
+    title: "HVAC Systems",
+    icon: "🌬️",
+    description: "Compare system type, efficiency, comfort, contractor requirements, and rebate eligibility.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: HEAT_PUMPS.length,
+    topProduct: HEAT_PUMPS[0],
+    href: "/products/heat-pumps",
+  },
+  {
+    id: "ev-chargers",
+    title: "EV Chargers",
+    icon: "🔌",
+    description: "Plan around panel capacity, charger amperage, utility rates, and installer requirements.",
+    topRebate: "Eligible rebate or instant discount may be available depending on retailer and program rules.",
+    count: 0,
+    topProduct: null,
+    href: "/products",
   },
 ];
 
@@ -63,6 +133,10 @@ export default function ProductsPage() {
         <p className="section-subtitle">
           Real efficiency data from EnergyStar, AHRI, and DOE. Annual costs calculated at
           PEPCO $0.217/kWh and Washington Gas $1.40/therm (April 2026).
+        </p>
+        <p className="mt-3 text-sm text-gray-500">
+          Eligible rebate or instant discount may be available depending on
+          retailer and program rules.
         </p>
       </div>
 

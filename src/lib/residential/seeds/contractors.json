@@ -1,0 +1,10 @@
+[
+  {
+    "business_name": "Example Home Performance Contractor",
+    "service_area": "Montgomery County",
+    "categories": ["home performance", "insulation", "air sealing"],
+    "license_info": ["MHIC verification required"],
+    "program_participation": ["Verify Pepco Home Performance participation"],
+    "status": "placeholder"
+  }
+]

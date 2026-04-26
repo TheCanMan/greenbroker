@@ -32,6 +32,10 @@
     @apply bg-white text-brand-700 font-semibold px-6 py-3 rounded-xl border-2 border-brand-600 hover:bg-brand-50 transition-colors duration-150;
   }
 
+  .btn-commercial {
+    @apply bg-blue-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors duration-150;
+  }
+
   .badge-savings {
     @apply inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-1 rounded-full;
   }

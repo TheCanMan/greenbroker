@@ -9,7 +9,8 @@ const NAV_LINKS = [
   { href: "/contractor-quotes", label: "Contractor Quotes" },
   { href: "/products", label: "Product Rankings" },
   { href: "/energy-supplier-compare", label: "Supplier Compare" },
-  { href: "/commercial", label: "Commercial" },
+  { href: "/learn", label: "Learn" },
+  { href: "/commercial", label: "Commercial", variant: "commercial" },
   { href: "/intake", label: "Check My Rebates", highlight: true },
 ];
 
@@ -39,6 +40,14 @@ export function NavHeader() {
                   key={link.href}
                   href={link.href}
                   className="ml-2 btn-primary text-sm py-2 px-4"
+                >
+                  {link.label}
+                </Link>
+              ) : link.variant === "commercial" ? (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="ml-2 btn-commercial text-sm py-2 px-4"
                 >
                   {link.label}
                 </Link>
@@ -77,6 +86,8 @@ export function NavHeader() {
                 className={
                   link.highlight
                     ? "block w-full text-center btn-primary text-sm py-3 px-4 mt-2"
+                    : link.variant === "commercial"
+                      ? "block w-full text-center btn-commercial text-sm py-3 px-4 mt-2"
                     : "block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
                 }
               >

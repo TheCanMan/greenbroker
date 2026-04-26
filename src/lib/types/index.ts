@@ -119,6 +119,10 @@ export interface Rebate {
   cannotStackWith?: RebateProgram[];
   requiresAudit?: boolean;
   requiresMEAContractor?: boolean;
+  applicationTiming?: "before_install" | "after_install" | "instant" | "contractor_submitted";
+  documentsNeeded?: string[];
+  lastVerified?: string;
+  territoryLabel?: string;
   description: string;
   url: string;
   applicableCategories: ProductCategory[];
