@@ -355,6 +355,9 @@ model QuoteRequest {
   preferredCategories String[] @default([]) @map("preferred_categories")
   status              String   @default("open") // open / closed / awarded / withdrawn
   contractorsNotifiedCount Int @default(0) @map("contractors_notified_count")
+  /// Winning bid (set when homeowner awards). FK to contractor_quotes.id.
+  winningQuoteId      String?  @map("winning_quote_id")
+  awardedAt           DateTime? @map("awarded_at")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
