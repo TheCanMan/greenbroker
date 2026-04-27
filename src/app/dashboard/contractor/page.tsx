@@ -152,6 +152,25 @@ export default async function ContractorDashboardPage() {
         </div>
       )}
 
+      {/* Inbound bid requests CTA */}
+      <Link
+        href="/dashboard/contractor/quotes"
+        className="card p-5 mb-6 block bg-brand-50 border-brand-200 hover:shadow-md transition-shadow"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-brand-900 mb-1">📥 Inbound bid requests</h2>
+            <p className="text-sm text-brand-800">
+              Homeowners in your service area requesting bids that match your
+              categories. Respond directly with structured pricing.
+            </p>
+          </div>
+          <span className="text-brand-700 font-semibold text-sm flex-shrink-0">
+            View →
+          </span>
+        </div>
+      </Link>
+
       {/* Recent leads */}
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
