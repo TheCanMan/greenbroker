@@ -125,10 +125,13 @@ export async function POST(request: Request) {
     }
   }
 
-  // 2. Insert the quote request.
+  // 2. Insert the quote request. The quote_requests.id column has no DB
+  //    default — Prisma normally generates via cuid() client-side, so we
+  //    mint a UUID here. Same pattern as /api/assessments POST.
   const { data: insertedRaw, error: insertErr } = await admin
     .from("quote_requests" as never)
     .insert({
+      id: crypto.randomUUID(),
       profile_id: profileId,
       zip: body.zip,
       county_id: targetCounty,

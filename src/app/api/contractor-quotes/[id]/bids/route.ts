@@ -87,10 +87,11 @@ export async function POST(
     );
   }
 
-  // Insert the bid.
+  // Insert the bid. contractor_quotes.id has no DB default — generate one.
   const { data: bid, error } = await admin
     .from("contractor_quotes")
     .insert({
+      id: crypto.randomUUID(),
       request_id: requestId,
       contractor_id: contractor.id,
       selected_upgrade: reqRow.selected_upgrade,

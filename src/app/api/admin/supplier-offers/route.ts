@@ -72,6 +72,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const lastVerified = body.last_verified ?? new Date().toISOString();
 
+  // supplier_offers.id has no DB default; the body provides one.
   const { data, error } = await admin
     .from("supplier_offers" as never)
     .upsert(
