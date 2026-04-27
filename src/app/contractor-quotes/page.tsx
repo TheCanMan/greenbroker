@@ -63,12 +63,31 @@ export default async function ContractorQuotesPage({ searchParams }: PageProps) 
         </p>
       </div>
 
-      <div className="card p-5 mb-8 bg-amber-50 border-amber-200">
-        <h2 className="font-bold text-amber-900 mb-2">Coming soon</h2>
-        <p className="text-sm text-amber-800 leading-relaxed">
-          We&apos;re building the bid-request flow. Today you can:
+      <div className="card p-6 mb-8 bg-brand-50 border-brand-200">
+        <h2 className="font-bold text-brand-900 mb-2 text-lg">
+          Ready to get bids?
+        </h2>
+        <p className="text-sm text-brand-800 leading-relaxed mb-4">
+          One short form, fanned out to vetted contractors who serve your
+          county. They respond with structured bids you can compare side-by-side.
         </p>
-        <ul className="text-sm text-amber-800 list-disc list-inside mt-2 space-y-1">
+        <Link
+          href={
+            upgrade
+              ? `/contractor-quotes/new?upgrade=${encodeURIComponent(upgrade)}`
+              : "/contractor-quotes/new"
+          }
+          className="btn-primary inline-block"
+        >
+          Request bids →
+        </Link>
+      </div>
+
+      <div className="card p-5 mb-8 bg-gray-50 border-gray-200">
+        <h2 className="font-bold text-gray-900 mb-2 text-sm">
+          Other things you can do
+        </h2>
+        <ul className="text-sm text-gray-700 list-disc list-inside space-y-1">
           <li>
             Browse vetted contractors who serve your county at{" "}
             <Link href="/contractors" className="underline font-semibold">
@@ -80,7 +99,7 @@ export default async function ContractorQuotesPage({ searchParams }: PageProps) 
             <Link href="/intake" className="underline font-semibold">
               intake
             </Link>{" "}
-            to capture your home profile (we&apos;ll auto-populate the packet later)
+            first so the bid form pre-fills your ZIP and home profile
           </li>
           <li>
             Use the{" "}
@@ -143,11 +162,19 @@ export default async function ContractorQuotesPage({ searchParams }: PageProps) 
       </div>
 
       <div className="text-center mt-12">
-        <Link href="/contractors" className="btn-primary inline-block">
-          Browse contractors who serve your county →
+        <Link
+          href={
+            upgrade
+              ? `/contractor-quotes/new?upgrade=${encodeURIComponent(upgrade)}`
+              : "/contractor-quotes/new"
+          }
+          className="btn-primary inline-block"
+        >
+          Start a bid request →
         </Link>
         <p className="text-xs text-gray-500 mt-3">
-          We&apos;ll hand-route your packet once the bid-request flow ships.
+          We email matching contractors immediately. Bids typically come back
+          within 2 business days.
         </p>
       </div>
     </div>

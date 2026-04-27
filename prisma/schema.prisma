@@ -340,8 +340,36 @@ model Product {
   @@map("products")
 }
 
+/// Homeowner-initiated bid request. One request fans out to many contractors.
+model QuoteRequest {
+  id                  String   @id @default(cuid())
+  profileId           String?  @map("profile_id")
+  homeProfileId       String?  @map("home_profile_id")
+  zip                 String
+  countyId            String?  @map("county_id")
+  state               String?
+  selectedUpgrade     String   @map("selected_upgrade")
+  scopeNotes          String?  @map("scope_notes")
+  contactEmail        String?  @map("contact_email")
+  contactPhone        String?  @map("contact_phone")
+  preferredCategories String[] @default([]) @map("preferred_categories")
+  status              String   @default("open") // open / closed / awarded / withdrawn
+  contractorsNotifiedCount Int @default(0) @map("contractors_notified_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  quotes ContractorQuote[]
+
+  @@index([profileId])
+  @@index([countyId])
+  @@index([status])
+  @@map("quote_requests")
+}
+
+/// Contractor response to a QuoteRequest.
 model ContractorQuote {
   id                  String   @id @default(cuid())
+  requestId           String?  @map("request_id")
   contractorId        String?  @map("contractor_id")
   homeProfileId       String?  @map("home_profile_id")
   selectedUpgrade     String   @map("selected_upgrade")
@@ -354,8 +382,11 @@ model ContractorQuote {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
+  request QuoteRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
   @@index([contractorId])
   @@index([homeProfileId])
+  @@index([requestId])
   @@map("contractor_quotes")
 }
 
