@@ -390,6 +390,13 @@ model SupplierOffer {
   earlyTerminationFee Float    @default(0) @map("early_termination_fee")
   renewablePercent    Int      @default(0) @map("renewable_percent")
   warnings            String[] @default([])
+  /// Public supplier homepage / offer URL — surfaced in UI as "verify at supplier site →"
+  url                 String?
+  /// Teaser rate $/kWh — only meaningful when fixedOrVariable = "intro_then_variable"
+  introRate           Float?    @map("intro_rate")
+  introMonths         Int?      @map("intro_months")
+  /// Where we verified this offer (PSC list, supplier rate page, etc.)
+  sourceUrl           String?   @map("source_url")
   lastVerified        DateTime? @map("last_verified")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")

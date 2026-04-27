@@ -1,7 +1,90 @@
 import Link from "next/link";
-import { SUPPLIER_OFFERS, PEPCO_STANDARD_OFFER_RATE } from "@/lib/data/supplier-offers";
+import {
+  SUPPLIER_OFFERS as SEED_OFFERS,
+  PEPCO_STANDARD_OFFER_RATE,
+  type SupplierOffer,
+} from "@/lib/data/supplier-offers";
 import { assessOffer } from "@/lib/data/supplier-risk";
 import { formatCurrency } from "@/lib/calculations/savings";
+
+import { createAdminClient } from "@/lib/supabase/server";
+
+/**
+ * Server-component reader. Talks to Supabase directly (no HTTP round-trip
+ * through /api/supplier-offers — that endpoint exists for client/admin use).
+ * Falls back to the file-based seed when the DB table is missing or empty.
+ */
+async function loadOffers(commodity: "electricity" | "gas"): Promise<{
+  offers: SupplierOffer[];
+  source: "db" | "seed_table_missing" | "seed_empty_table" | "seed_fetch_failed";
+  notice?: string;
+}> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("supplier_offers" as never)
+      .select(
+        "id, supplier_name, license_number, commodity, rate, fixed_or_variable, " +
+          "term_months, monthly_fee, early_termination_fee, renewable_percent, " +
+          "intro_rate, intro_months, url, source_url, last_verified, warnings"
+      )
+      .eq("commodity", commodity);
+
+    const tableUnavailable =
+      error?.code === "42P01" ||
+      error?.code === "PGRST116" ||
+      error?.message?.includes("schema cache");
+    if (error && !tableUnavailable) throw error;
+
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    if (rows.length > 0) {
+      return {
+        offers: rows.map(rowToOffer),
+        source: "db",
+      };
+    }
+    return {
+      offers: SEED_OFFERS.filter((o) => o.commodity === commodity),
+      source: tableUnavailable ? "seed_table_missing" : "seed_empty_table",
+      notice:
+        "Showing seed data while we onboard real PSC-verified supplier offers.",
+    };
+  } catch {
+    return {
+      offers: SEED_OFFERS.filter((o) => o.commodity === commodity),
+      source: "seed_fetch_failed",
+      notice: "Couldn't reach the offer store — showing seed data.",
+    };
+  }
+}
+
+function rowToOffer(r: Record<string, unknown>): SupplierOffer {
+  return {
+    id: String(r.id),
+    supplierName: String(r.supplier_name),
+    licenseNumber: String(r.license_number),
+    commodity: r.commodity as SupplierOffer["commodity"],
+    rate: Number(r.rate),
+    rateType: r.fixed_or_variable as SupplierOffer["rateType"],
+    termMonths: Number(r.term_months),
+    monthlyFee: Number(r.monthly_fee ?? 0),
+    earlyTerminationFee: Number(r.early_termination_fee ?? 0),
+    renewablePercent: Number(r.renewable_percent ?? 0),
+    introRate: r.intro_rate != null ? Number(r.intro_rate) : undefined,
+    introMonths: r.intro_months != null ? Number(r.intro_months) : undefined,
+    url: r.url ? String(r.url) : undefined,
+    lastVerified: r.last_verified
+      ? new Date(String(r.last_verified)).toISOString().slice(0, 10)
+      : "unknown",
+  };
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  db: "Curated from PSC-verified data",
+  seed_table_missing: "Seed data — DB curation pending",
+  seed_empty_table: "Seed data — DB curation pending",
+  seed_fetch_failed: "Seed data — fetch failed, retrying next refresh",
+};
 
 interface PageProps {
   searchParams: Promise<{
@@ -35,7 +118,9 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
   const desiredPlanType = sp.desired_plan_type ?? "fixed_rate_only";
   const riskTolerance = sp.risk_tolerance ?? "low";
 
-  const assessed = SUPPLIER_OFFERS.filter((offer) => {
+  const { offers: liveOffers, source, notice } = await loadOffers("electricity");
+
+  const assessed = liveOffers.filter((offer) => {
     if (desiredPlanType === "fixed_rate_only") return offer.rateType === "fixed";
     if (desiredPlanType === "renewable") return offer.renewablePercent > 0;
     return true;
@@ -60,6 +145,27 @@ export default async function SupplierComparePage({ searchParams }: PageProps) {
           good one. We compare offers against your utility&apos;s supply rate and flag
           risky contract terms before you switch.
         </p>
+        <div
+          className={`mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border ${
+            source === "db"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-amber-50 text-amber-800 border-amber-200"
+          }`}
+        >
+          <span className={source === "db" ? "text-emerald-600" : "text-amber-600"}>
+            {source === "db" ? "●" : "○"}
+          </span>
+          <span>
+            {SOURCE_LABEL[source] ?? "Source: unknown"}
+            {liveOffers.length > 0 &&
+              ` · ${liveOffers.length} offer${liveOffers.length === 1 ? "" : "s"}`}
+          </span>
+        </div>
+        {notice && (
+          <p className="text-xs text-amber-700 mt-2 max-w-xl leading-snug">
+            {notice}
+          </p>
+        )}
       </div>
 
       <form
