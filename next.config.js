@@ -77,10 +77,16 @@ const nextConfig = {
   },
 
   // ─── Redirects ──────────────────────────────────────────────────────────────
+  // Consolidating overlapping browse surfaces: /appliances and /vendors merge
+  // into /products. /calculator -> /intake (the intake -> /plan flow is the
+  // calculator's modern replacement). Permanent (308) so search engines
+  // update.
   async redirects() {
     return [
-      // Redirect logged-out users from dashboard
-      // (handled in middleware, but belt-and-suspenders)
+      { source: "/calculator", destination: "/intake", permanent: true },
+      { source: "/appliances", destination: "/products", permanent: true },
+      { source: "/appliances/:rest*", destination: "/products", permanent: true },
+      { source: "/vendors", destination: "/products", permanent: true },
     ];
   },
 };
