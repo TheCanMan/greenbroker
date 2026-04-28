@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getUserProfile } from "@/lib/supabase/server";
 import { TagQueueClient } from "@/components/commercial/admin/TagQueueClient";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Staff Review Queue",
+};
 
 export default async function CommercialTagQueuePage() {
   const profile = await getUserProfile();

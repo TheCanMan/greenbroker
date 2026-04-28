@@ -27,6 +27,8 @@ export default async function DashboardLayout({
   const profile = await getUserProfile();
   const isContractor = profile?.role === "CONTRACTOR";
   const navItems = isContractor ? NAV_ITEMS_CONTRACTOR : NAV_ITEMS_HOMEOWNER;
+  const rawName = profile?.first_name ?? user.email?.split("@")[0] ?? "";
+  const displayName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,7 +64,7 @@ export default async function DashboardLayout({
                 </Link>
               )}
               <div className="text-sm text-gray-600">
-                {profile?.first_name ?? user.email?.split("@")[0]}
+                {displayName}
               </div>
               <form action="/api/auth/signout" method="POST">
                 <button

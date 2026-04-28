@@ -27,10 +27,10 @@ export function NextSteps({ findings, buildingId }: { findings: Finding[]; build
       </ol>
       <div className="mt-5 flex flex-wrap gap-3 no-print">
         <a
-          href={`/api/commercial/report/${buildingId}`}
+          href={`/commercial/buildings/${buildingId}/report`}
           className="btn-primary text-sm"
         >
-          Download PDF report
+          Open print-ready report
         </a>
         <button
           type="button"

@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  getCommercialDemoTrend,
+  isCommercialDemoFindingId,
+} from "@/lib/commercial/demo-data";
 import { API_INTERNAL_URL } from "@/lib/commercial/utils";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +12,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  if (isCommercialDemoFindingId(id)) {
+    return NextResponse.json(getCommercialDemoTrend(id));
+  }
+
   const upstream = await fetch(
     `${API_INTERNAL_URL}/findings/${encodeURIComponent(id)}/trend`,
     { cache: "no-store" },

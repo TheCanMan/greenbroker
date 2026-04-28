@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NavHeader } from "@/components/nav-header";
+import { getUser, getUserProfile } from "@/lib/supabase/server";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -20,16 +21,24 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getUser();
+  let firstName: string | null = null;
+  if (user) {
+    const profile = await getUserProfile();
+    const raw = profile?.first_name ?? user.email?.split("@")[0] ?? null;
+    if (raw) firstName = raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+
   return (
     <html lang="en">
       <body>
         {/* Navigation */}
-        <NavHeader />
+        <NavHeader firstName={firstName} isLoggedIn={!!user} />
 
         {/* Main content */}
         <main>{children}</main>

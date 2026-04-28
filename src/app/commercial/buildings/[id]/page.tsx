@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { DashboardPayload } from "@/lib/commercial/types";
+import {
+  getCommercialDemoDashboard,
+  isCommercialDemoBuildingId,
+} from "@/lib/commercial/demo-data";
 import { fetchEntropyJson } from "@/lib/commercial/utils";
 import { DemoBanner } from "@/components/commercial/dashboard/DemoBanner";
 import { HeadlineCard } from "@/components/commercial/dashboard/HeadlineCard";
@@ -13,6 +18,31 @@ import { NextSteps } from "@/components/commercial/dashboard/NextSteps";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+
+  if (isCommercialDemoBuildingId(id)) {
+    return {
+      title: `${getCommercialDemoDashboard().building.name} Dashboard`,
+    };
+  }
+
+  try {
+    const data = await fetchEntropyJson<DashboardPayload>(`/buildings/${id}/dashboard`);
+    return {
+      title: `${data.building.name} Dashboard`,
+    };
+  } catch {
+    return {
+      title: "Building Dashboard",
+    };
+  }
+}
+
 export default async function CommercialBuildingDashboard({
   params,
 }: {
@@ -20,10 +50,15 @@ export default async function CommercialBuildingDashboard({
 }) {
   const { id } = await params;
   let data: DashboardPayload;
-  try {
-    data = await fetchEntropyJson<DashboardPayload>(`/buildings/${id}/dashboard`);
-  } catch {
-    return notFound();
+
+  if (isCommercialDemoBuildingId(id)) {
+    data = getCommercialDemoDashboard();
+  } else {
+    try {
+      data = await fetchEntropyJson<DashboardPayload>(`/buildings/${id}/dashboard`);
+    } catch {
+      return notFound();
+    }
   }
   const {
     building,

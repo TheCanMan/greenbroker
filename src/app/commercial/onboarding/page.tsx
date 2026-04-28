@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CommercialOnboardingForm } from "@/components/commercial/OnboardingForm";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Tier 0 Benchmark Intake",
+};
 
 export default function CommercialOnboardingPage() {
   return (

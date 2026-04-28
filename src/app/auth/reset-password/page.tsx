@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
             <span className="text-2xl font-bold text-brand-700">GreenBroker</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Reset your password</h1>
-          <p className="text-gray-500">Enter your email and we'll send a reset link</p>
+          <p className="text-gray-500">Enter your email and we&apos;ll send a reset link</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">

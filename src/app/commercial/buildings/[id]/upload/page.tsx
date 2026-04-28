@@ -1,10 +1,40 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Building } from "@/lib/commercial/types";
+import {
+  getCommercialDemoBuilding,
+  isCommercialDemoBuildingId,
+} from "@/lib/commercial/demo-data";
 import { fetchEntropyJson } from "@/lib/commercial/utils";
 import { Tier1UploadForm } from "@/components/commercial/Tier1UploadForm";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+
+  if (isCommercialDemoBuildingId(id)) {
+    return {
+      title: `${getCommercialDemoBuilding().name} Upload`,
+    };
+  }
+
+  try {
+    const building = await fetchEntropyJson<Building>(`/buildings/${id}`);
+    return {
+      title: `${building.name} Upload`,
+    };
+  } catch {
+    return {
+      title: "Trend Data Upload",
+    };
+  }
+}
 
 export default async function CommercialTier1UploadPage({
   params,
@@ -13,10 +43,15 @@ export default async function CommercialTier1UploadPage({
 }) {
   const { id } = await params;
   let building: Building;
-  try {
-    building = await fetchEntropyJson<Building>(`/buildings/${id}`);
-  } catch {
-    return notFound();
+
+  if (isCommercialDemoBuildingId(id)) {
+    building = getCommercialDemoBuilding();
+  } else {
+    try {
+      building = await fetchEntropyJson<Building>(`/buildings/${id}`);
+    } catch {
+      return notFound();
+    }
   }
 
   return (
