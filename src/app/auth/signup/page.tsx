@@ -1,23 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type AccountType = "homeowner" | "contractor";
-
 export default function SignupPage() {
-  const router = useRouter();
-
-  const [accountType, setAccountType] = useState<AccountType>("homeowner");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [redirectTo, setRedirectTo] = useState("/dashboard");
+  const [intent, setIntent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setRedirectTo(params.get("redirect") ?? "/dashboard");
+    setIntent(params.get("intent"));
+  }, []);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -35,11 +37,11 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         data: {
           first_name: firstName,
           last_name: lastName,
-          role: accountType === "contractor" ? "CONTRACTOR" : "HOMEOWNER",
+          role: "HOMEOWNER",
         },
       },
     });
@@ -60,7 +62,7 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
       },
     });
     if (error) {
@@ -79,7 +81,7 @@ export default function SignupPage() {
             We sent a confirmation link to <strong>{email}</strong>.
           </p>
           <p className="text-gray-500 text-sm mb-6">
-            Click the link in the email to activate your account. Check your spam folder if you don't see it within a minute.
+            Click the link in the email to activate your account. Check your spam folder if you don&apos;t see it within a minute.
           </p>
           <Link href="/auth/login" className="text-brand-600 font-medium text-sm hover:text-brand-700">
             Back to sign in
@@ -98,8 +100,14 @@ export default function SignupPage() {
             <span className="text-3xl">🌿</span>
             <span className="text-2xl font-bold text-brand-700">GreenBroker</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Create your account</h1>
-          <p className="text-gray-500">Free to join. No credit card required.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-2">
+            {intent === "save-plan" ? "Save your energy plan" : "Create your homeowner account"}
+          </h1>
+          <p className="text-gray-500">
+            {intent === "save-plan"
+              ? "Create a free account so you can come back to this plan, rebate packets, and next steps."
+              : "Free to join. No credit card required."}
+          </p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
@@ -108,31 +116,6 @@ export default function SignupPage() {
               {error}
             </div>
           )}
-
-          {/* Account type */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">I am a...</label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { value: "homeowner" as const, label: "🏠 Homeowner", sub: "Track savings, find contractors" },
-                { value: "contractor" as const, label: "🔧 Contractor", sub: "Get qualified leads" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setAccountType(opt.value)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    accountType === opt.value
-                      ? "border-brand-500 bg-brand-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{opt.sub}</div>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Google */}
           <button
@@ -226,9 +209,19 @@ export default function SignupPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-brand-600 font-semibold hover:text-brand-700">
+            <Link
+              href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`}
+              className="text-brand-600 font-semibold hover:text-brand-700"
+            >
               Sign in
             </Link>
+          </p>
+          <p className="text-center text-xs text-gray-400 mt-4">
+            Are you a contractor?{" "}
+            <Link href="/contractors/apply" className="underline hover:text-gray-600">
+              Apply for the contractor network
+            </Link>
+            .
           </p>
         </div>
       </div>

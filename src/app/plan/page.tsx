@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LocationPicker } from "@/components/geo/LocationPicker";
 import { formatCurrency } from "@/lib/calculations/savings";
 import {
@@ -60,8 +60,14 @@ function fallbackSnapshotFromParams(sp: URLSearchParams): ResidentialIntakeSnaps
 }
 
 function PlanBody() {
+  const router = useRouter();
+  const pathname = usePathname();
   const sp = useSearchParams();
   const [storedSnapshot, setStoredSnapshot] = useState<ResidentialIntakeSnapshot | null>(null);
+  const [remoteSnapshot, setRemoteSnapshot] = useState<ResidentialIntakeSnapshot | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const assessmentId = sp.get("assessment");
+  const currentPath = `${pathname}?${sp.toString()}`;
 
   useEffect(() => {
     try {
@@ -69,24 +75,84 @@ function PlanBody() {
       if (!raw) return;
 
       const parsed = JSON.parse(raw) as ResidentialIntakeSnapshot;
-      const assessmentId = sp.get("assessment");
       if (!assessmentId || parsed.assessmentId === assessmentId) {
         setStoredSnapshot(parsed);
       }
     } catch {
       setStoredSnapshot(null);
     }
-  }, [sp]);
+  }, [assessmentId]);
+
+  useEffect(() => {
+    if (!assessmentId || storedSnapshot?.assessmentId === assessmentId) return;
+
+    let cancelled = false;
+    fetch(`/api/assessments/${encodeURIComponent(assessmentId)}`, {
+      cache: "no-store",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { snapshot?: ResidentialIntakeSnapshot } | null) => {
+        if (!cancelled && data?.snapshot) {
+          setRemoteSnapshot(data.snapshot);
+          try {
+            sessionStorage.setItem(
+              GREENBROKER_PLAN_STORAGE_KEY,
+              JSON.stringify(data.snapshot),
+            );
+          } catch {
+            // The fetched assessment still drives this render even if storage is unavailable.
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteSnapshot(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessmentId, storedSnapshot?.assessmentId]);
 
   const fallbackSnapshot = useMemo(
     () => fallbackSnapshotFromParams(new URLSearchParams(sp.toString())),
     [sp],
   );
-  const snapshot = storedSnapshot ?? fallbackSnapshot;
+  const snapshot = storedSnapshot ?? remoteSnapshot ?? fallbackSnapshot;
   const plan = useMemo(
     () => (snapshot ? buildResidentialEnergyPlan(snapshot) : null),
     [snapshot],
   );
+
+  async function handleSavePlan() {
+    if (!plan) return;
+
+    setSaveStatus("saving");
+    try {
+      if (assessmentId) {
+        const res = await fetch(`/api/assessments/${encodeURIComponent(assessmentId)}/claim`, {
+          method: "POST",
+        });
+        if (res.status === 401) {
+          router.push(`/auth/signup?redirect=${encodeURIComponent(currentPath)}&intent=save-plan`);
+          return;
+        }
+        if (!res.ok) throw new Error("Could not save this plan.");
+      } else {
+        router.push(`/auth/signup?redirect=${encodeURIComponent(currentPath)}&intent=save-plan`);
+        return;
+      }
+
+      try {
+        localStorage.setItem(GREENBROKER_PLAN_STORAGE_KEY, JSON.stringify(plan.snapshot));
+      } catch {
+        // Server ownership is the durable save. Local storage only speeds up reloads.
+      }
+      setSaveStatus("saved");
+      router.refresh();
+    } catch {
+      setSaveStatus("error");
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -307,23 +373,30 @@ function PlanBody() {
             </div>
           </section>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <button
               type="button"
               className="btn-secondary text-sm"
-              onClick={() => {
-                try {
-                  localStorage.setItem(GREENBROKER_PLAN_STORAGE_KEY, JSON.stringify(plan.snapshot));
-                } catch {
-                  // Saving the plan is optional; the visible plan remains usable.
-                }
-              }}
+              onClick={handleSavePlan}
+              disabled={saveStatus === "saving"}
             >
-              Save plan
+              {saveStatus === "saving"
+                ? "Saving..."
+                : saveStatus === "saved"
+                  ? "Plan saved"
+                  : "Save plan"}
             </button>
             <Link href="/packet" className="btn-primary text-sm">
               Prepare my rebate packet
             </Link>
+            <p className="text-xs text-gray-500">
+              Viewing is free. Saving requires a homeowner account.
+            </p>
+            {saveStatus === "error" && (
+              <p className="text-sm text-red-600">
+                Could not save this plan. Please sign in and try again.
+              </p>
+            )}
           </div>
 
           <p className="text-xs text-gray-500 mt-8 leading-relaxed max-w-3xl">

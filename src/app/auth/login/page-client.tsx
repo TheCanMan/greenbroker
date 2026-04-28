@@ -209,10 +209,20 @@ export function LoginPageClient() {
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            Don't have an account?{" "}
-            <Link href="/contractors/apply" className="text-brand-600 hover:text-brand-700 font-medium">
-              Apply as a contractor
+            Don&apos;t have an account?{" "}
+            <Link
+              href={`/auth/signup?redirect=${encodeURIComponent(redirectTo)}`}
+              className="text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Create homeowner account
             </Link>
+          </p>
+          <p className="text-center text-xs text-gray-400 mt-4">
+            Contractor?{" "}
+            <Link href="/contractors/apply" className="underline hover:text-gray-600">
+              Apply here
+            </Link>
+            .
           </p>
         </div>
       </div>
