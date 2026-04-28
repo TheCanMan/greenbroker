@@ -243,6 +243,17 @@ function IntakeForm() {
     : null;
   const gasUtility = form.gasUtilityId ? UTILITY_BY_ID.get(form.gasUtilityId) : null;
 
+  useEffect(() => {
+    setForm((prev) => {
+      if (!prev.electricUtilityId && !prev.gasUtilityId) return prev;
+      return {
+        ...prev,
+        electricUtilityId: "",
+        gasUtilityId: "",
+      };
+    });
+  }, [resolved?.countyId]);
+
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -316,6 +327,7 @@ function IntakeForm() {
           current_supplier_name: null,
           average_monthly_bill:
             typeof form.averageMonthlyBill === "number" ? form.averageMonthlyBill : null,
+          heating_type: form.heatingType || null,
           cooling_type: form.coolingType || null,
           water_heater_type: form.waterHeaterType || null,
           water_heater_age:

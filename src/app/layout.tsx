@@ -43,109 +43,51 @@ export default async function RootLayout({
         {/* Main content */}
         <main>{children}</main>
 
-        {/* Footer */}
+        {/* Footer — intentionally minimal. Top-level pages live in the nav. */}
         <footer className="bg-gray-900 text-gray-400 mt-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="col-span-1 md:col-span-2">
-                <div className="flex items-center gap-2 mb-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2">
                   <span className="text-2xl">🌿</span>
                   <span className="text-xl font-bold text-white">GreenBroker</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    Montgomery County, MD pilot
+                  </span>
                 </div>
-                <p className="text-sm leading-relaxed max-w-sm">
-                  TurboTax for home energy savings — find your rebates, calculate net cost,
-                  and prepare paperwork from one simple form. Currently piloting in
-                  Montgomery County, MD.
-                </p>
-                <p className="text-xs mt-4 text-gray-500">
-                  Rebate rules change. Always verify availability and eligibility before
-                  purchase or installation.
+                <p className="text-xs text-gray-500 mt-2 max-w-md leading-relaxed">
+                  Rebate rules change. Always verify availability and eligibility
+                  before purchase or installation.
                 </p>
               </div>
 
-              <div>
-                <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">
-                  Resources
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <Link href="/products" className="hover:text-white transition-colors">
-                      Product Rankings
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/calculator" className="hover:text-white transition-colors">
-                      Savings Calculator
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/rebates" className="hover:text-white transition-colors">
-                      Rebate Database
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/contractors" className="hover:text-white transition-colors">
-                      Find Contractors
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">
-                  Key Programs
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <a
-                      href="https://www.pepco.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition-colors"
-                    >
-                      PEPCO EmPOWER Maryland
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://www.electrifymc.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition-colors"
-                    >
-                      Electrify MC
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://energy.maryland.gov"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition-colors"
-                    >
-                      Maryland Energy Administration
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://www.mcgreenbank.org"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition-colors"
-                    >
-                      MC Green Bank
-                    </a>
-                  </li>
-                </ul>
-              </div>
+              <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                <Link href="/rebates" className="hover:text-white transition-colors">
+                  Rebates
+                </Link>
+                <Link href="/contractors" className="hover:text-white transition-colors">
+                  Contractors
+                </Link>
+                <Link href="/learn" className="hover:text-white transition-colors">
+                  Learn
+                </Link>
+                <Link href="/privacy" className="hover:text-white transition-colors">
+                  Privacy
+                </Link>
+                <Link href="/terms" className="hover:text-white transition-colors">
+                  Terms
+                </Link>
+              </nav>
             </div>
 
-            <div className="border-t border-gray-800 mt-8 pt-8 text-xs text-gray-500">
-              <p>
-                © 2026 GreenBroker. MVP — Montgomery County, MD pilot. Not affiliated with
-                PEPCO, Montgomery County, or MEA. Always verify rebate availability before
-                committing to a project.
-              </p>
+            <div className="border-t border-gray-800 mt-6 pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-gray-500">
+              <p>© 2026 GreenBroker. Not affiliated with PEPCO, Montgomery County, or MEA.</p>
+              <Link
+                href="/commercial"
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                Building owner? See GreenBroker for Commercial →
+              </Link>
             </div>
           </div>
         </footer>

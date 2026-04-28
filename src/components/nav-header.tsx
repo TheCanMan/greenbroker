@@ -5,16 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// Top-nav is intentionally tight: 3 public destinations + auth + primary CTA.
+// Tools (Plan, Supplier Compare, Product Rankings, Contractor Quotes) are
+// accessed in-context from the pages where they belong, not the global nav.
 const NAV_LINKS = [
-  { href: "/plan", label: "My Energy Plan" },
   { href: "/rebates", label: "Rebates" },
-  { href: "/contractor-quotes", label: "Contractor Quotes" },
-  { href: "/products", label: "Product Rankings" },
-  { href: "/energy-supplier-compare", label: "Supplier Compare" },
+  { href: "/contractors", label: "Find Contractors" },
   { href: "/learn", label: "Learn" },
-  { href: "/commercial", label: "Commercial", variant: "commercial" },
-  { href: "/intake", label: "Check My Rebates", highlight: true },
-];
+] as const;
 
 interface NavHeaderProps {
   firstName?: string | null;
@@ -42,67 +40,53 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
             <span className="text-xl font-bold text-brand-700 group-hover:text-brand-600 transition-colors">
               GreenBroker
             </span>
-            <span className="hidden lg:block text-xs text-gray-400 font-medium">
-              Montgomery County, MD
-            </span>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav — 3 destinations */}
           <nav className="hidden md:flex items-center gap-1 mx-4">
-            {NAV_LINKS.map((link) =>
-              link.highlight ? (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="ml-2 btn-primary text-sm py-2 px-4"
-                >
-                  {link.label}
-                </Link>
-              ) : link.variant === "commercial" ? (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="ml-2 btn-commercial text-sm py-2 px-4"
-                >
-                  {link.label}
-                </Link>
-              ) : (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
-                >
-                  {link.label}
-                </Link>
-              )
-            )}
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Desktop auth section */}
-          <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Right side: auth + primary CTA */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             {isLoggedIn ? (
-              <>
+              <div className="flex items-center gap-2">
                 <Link
                   href="/dashboard"
-                  className="text-sm text-gray-600 hover:text-brand-700 transition-colors"
+                  className="text-sm text-gray-700 hover:text-brand-700 transition-colors"
                 >
-                  {firstName ? `Hi, ${firstName}` : "My Account"}
+                  {firstName ? `Hi, ${firstName}` : "My account"}
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  aria-label="Sign out"
                 >
                   Sign out
                 </button>
-              </>
+              </div>
             ) : (
               <Link
                 href="/auth/login"
-                className="text-sm font-medium text-gray-600 hover:text-brand-700 transition-colors px-3 py-2 rounded-lg hover:bg-brand-50"
+                className="text-sm font-medium text-gray-600 hover:text-brand-700 transition-colors"
               >
                 Sign in
               </Link>
             )}
+            <Link
+              href={isLoggedIn ? "/plan" : "/intake"}
+              className="btn-primary text-sm py-2 px-4"
+            >
+              {isLoggedIn ? "My plan" : "Check My Rebates →"}
+            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -125,17 +109,18 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={
-                  link.highlight
-                    ? "block w-full text-center btn-primary text-sm py-3 px-4 mt-2"
-                    : link.variant === "commercial"
-                      ? "block w-full text-center btn-commercial text-sm py-3 px-4 mt-2"
-                      : "block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
-                }
+                className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
               >
                 {link.label}
               </Link>
             ))}
+            <Link
+              href={isLoggedIn ? "/plan" : "/intake"}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full text-center btn-primary text-sm py-3 px-4 mt-2"
+            >
+              {isLoggedIn ? "My plan" : "Check My Rebates →"}
+            </Link>
             <div className="pt-2 border-t border-gray-100 mt-2">
               {isLoggedIn ? (
                 <>
@@ -144,7 +129,7 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
                     onClick={() => setMobileMenuOpen(false)}
                     className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
                   >
-                    {firstName ? `Hi, ${firstName}` : "My Account"}
+                    {firstName ? `Hi, ${firstName}` : "My account"}
                   </Link>
                   <button
                     onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}

@@ -117,11 +117,29 @@ function PlanBody() {
     () => fallbackSnapshotFromParams(new URLSearchParams(sp.toString())),
     [sp],
   );
-  const snapshot = storedSnapshot ?? remoteSnapshot ?? fallbackSnapshot;
+  const snapshot = storedSnapshot ?? remoteSnapshot ?? (assessmentId ? null : fallbackSnapshot);
+  const isLoadingAssessment = Boolean(assessmentId && !storedSnapshot && !remoteSnapshot);
   const plan = useMemo(
     () => (snapshot ? buildResidentialEnergyPlan(snapshot) : null),
     [snapshot],
   );
+  const supplierCompareHref = useMemo(() => {
+    if (!plan) return "/energy-supplier-compare";
+
+    const params = new URLSearchParams({
+      kwh: String(plan.estimatedAnnualUsage.kwh),
+      desired_plan_type: "fixed_rate_only",
+      risk_tolerance: "low",
+    });
+    if (plan.snapshot.electricUtilityId) {
+      params.set("utility", plan.snapshot.electricUtilityId);
+    }
+    if (plan.snapshot.currentSupplierName) {
+      params.set("current_supplier", plan.snapshot.currentSupplierName);
+    }
+
+    return `/energy-supplier-compare?${params.toString()}`;
+  }, [plan]);
 
   async function handleSavePlan() {
     if (!plan) return;
@@ -161,7 +179,9 @@ function PlanBody() {
         <p className="section-subtitle">
           {plan
             ? "Ranked by net cost, rebate amount, estimated savings, payback, ease, and paperwork readiness."
-            : "Tell us where you live to see your personalized plan."}
+            : isLoadingAssessment
+              ? "Loading your saved assessment before showing recommendations."
+              : "Tell us where you live to see your personalized plan."}
         </p>
       </div>
 
@@ -173,15 +193,20 @@ function PlanBody() {
         <div className="card p-10 text-center">
           <div className="text-4xl mb-4">📍</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">
-            We need a few details to build your plan
+            {isLoadingAssessment
+              ? "Loading your saved plan"
+              : "We need a few details to build your plan"}
           </h2>
           <p className="text-sm text-gray-600 max-w-md mx-auto mb-6">
-            Run the full intake to get equipment-aware recommendations, rebate
-            packet readiness, and safer supplier comparison.
+            {isLoadingAssessment
+              ? "We are fetching the assessment details so the plan uses your intake instead of generic estimates."
+              : "Run the full intake to get equipment-aware recommendations, rebate packet readiness, and safer supplier comparison."}
           </p>
-          <Link href="/intake" className="btn-primary inline-block">
-            Check My Rebates →
-          </Link>
+          {!isLoadingAssessment && (
+            <Link href="/intake" className="btn-primary inline-block">
+              Check My Rebates →
+            </Link>
+          )}
         </div>
       ) : (
         <>
@@ -365,7 +390,7 @@ function PlanBody() {
                 before you switch.
               </p>
               <Link
-                href={`/energy-supplier-compare?kwh=${plan.estimatedAnnualUsage.kwh}`}
+                href={supplierCompareHref}
                 className="mt-4 inline-block btn-commercial text-sm"
               >
                 Compare energy suppliers

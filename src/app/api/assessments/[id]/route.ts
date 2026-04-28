@@ -43,6 +43,24 @@ function validGoals(value: unknown): ResidentialIntakeSnapshot["goals"] {
     : ["lower_bills"];
 }
 
+function heatingTypeFromAssessmentRow(
+  row: Record<string, unknown>,
+  intake: Record<string, unknown>,
+): string | null {
+  const explicit = stringValue(intake.heating_type);
+  if (explicit) return explicit;
+
+  const hvacType = stringValue(row.current_hvac_type);
+  if (hvacType === "heat-pump") return "heat_pump";
+
+  const fuel = stringValue(row.primary_heating_fuel);
+  if (fuel === "gas") return "gas_furnace";
+  if (fuel === "electric") return "electric_resistance";
+  if (fuel === "oil") return "oil";
+  if (fuel === "propane") return "propane";
+  return fuel;
+}
+
 function snapshotFromAssessmentRow(row: Record<string, unknown>): ResidentialIntakeSnapshot {
   const intake = objectFromJson(row.intake_v2);
 
@@ -65,7 +83,7 @@ function snapshotFromAssessmentRow(row: Record<string, unknown>): ResidentialInt
     annualTherms: numberValue(row.annual_therms),
     currentSupplierKnown: booleanValue(intake.current_supplier_known) ?? undefined,
     currentSupplierName: stringValue(intake.current_supplier_name),
-    heatingType: stringValue(intake.heating_type) ?? stringValue(row.primary_heating_fuel),
+    heatingType: heatingTypeFromAssessmentRow(row, intake),
     coolingType: stringValue(intake.cooling_type),
     waterHeaterType: stringValue(intake.water_heater_type),
     waterHeaterAge: numberValue(intake.water_heater_age),
