@@ -5,12 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// Top-nav is intentionally tight: 3 public destinations + auth + primary CTA.
-// Tools (Plan, Supplier Compare, Product Rankings, Contractor Quotes) are
-// accessed in-context from the pages where they belong, not the global nav.
-const NAV_LINKS = [
+type NavLink = {
+  href: string;
+  label: string;
+  variant?: "commercial";
+};
+
+const NAV_LINKS: NavLink[] = [
+  { href: "/plan", label: "My Energy Plan" },
   { href: "/rebates", label: "Rebates" },
-  { href: "/contractors", label: "Find Contractors" },
+  { href: "/contractor-quotes", label: "Contractor Quotes" },
+  { href: "/products", label: "Product Rankings" },
+  { href: "/energy-supplier-compare", label: "Supplier Compare" },
+  { href: "/commercial", label: "Commercial", variant: "commercial" },
   { href: "/learn", label: "Learn" },
 ] as const;
 
@@ -42,13 +49,17 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
             </span>
           </Link>
 
-          {/* Desktop Nav — 3 destinations */}
-          <nav className="hidden md:flex items-center gap-1 mx-4">
+          {/* Desktop Nav */}
+          <nav className="hidden xl:flex items-center gap-1 mx-4">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                className={
+                  link.variant === "commercial"
+                    ? "ml-1 whitespace-nowrap rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+                    : "whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                }
               >
                 {link.label}
               </Link>
@@ -56,7 +67,7 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
           </nav>
 
           {/* Right side: auth + primary CTA */}
-          <div className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="hidden xl:flex items-center gap-3 shrink-0">
             {isLoggedIn ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -91,7 +102,7 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
 
           {/* Mobile menu button */}
           <button
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+            className="xl:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -102,14 +113,18 @@ export function NavHeader({ firstName, isLoggedIn }: NavHeaderProps) {
 
       {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
+        <div className="xl:hidden border-t border-gray-200 bg-white">
           <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                className={
+                  link.variant === "commercial"
+                    ? "block w-full rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+                    : "block px-4 py-3 text-sm font-medium text-gray-700 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                }
               >
                 {link.label}
               </Link>
