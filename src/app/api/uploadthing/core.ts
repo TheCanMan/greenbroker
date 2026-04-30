@@ -8,16 +8,16 @@ const f = createUploadthing();
  * Uploadthing handles the actual file storage (CDN-backed).
  * We store the returned URLs in Supabase.
  *
- * Security: each route verifies auth before allowing upload.
+ * Security: authenticated-only routes verify auth; homeowner utility bill
+ * upload intentionally supports guest intake after explicit UI consent.
  */
 export const ourFileRouter = {
   /**
    * Utility bill uploads — for homeowner intake.
-   * Max 5 files, 8MB each, PDF or image.
+   * Max 5 PDF files, 8MB each.
    */
   utilityBillUploader: f({
     pdf: { maxFileSize: "8MB", maxFileCount: 5 },
-    image: { maxFileSize: "8MB", maxFileCount: 5 },
   })
     .middleware(async ({ req }) => {
       const supabase = await createClient();

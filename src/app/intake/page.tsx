@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UtilityPicker } from "@/components/geo/UtilityPicker";
 import { COUNTY_BY_ID, UTILITY_BY_ID } from "@/lib/geo/registry";
 import { resolveZip } from "@/lib/geo/zip-lookup";
 import { GREENBROKER_PLAN_STORAGE_KEY } from "@/lib/residential/agents";
+import { useUploadThing } from "@/lib/uploadthing";
+import type { UtilityBillExtraction } from "@/lib/bill-parser/schema";
 
 type HomeType = "single_family" | "townhouse" | "condo" | "multifamily";
 type Ownership = "own" | "rent" | "landlord";
@@ -54,6 +56,11 @@ interface FormState {
   gasUtilityId: string;
   averageMonthlyBill: number | "";
   annualKwh: number | "";
+  annualTherms: number | "";
+  currentSupplierName: string;
+  currentSupplierKnown: boolean;
+  utilityBillUrls: string[];
+  billExtractions: UtilityBillExtraction[];
   heatingType: HeatingType | "";
   coolingType: CoolingType | "";
   waterHeaterType: WaterHeaterType | "";
@@ -65,6 +72,7 @@ interface FormState {
   householdSize: number | "";
   incomeRange: IncomeRange | "";
   consentGeneratePlan: boolean;
+  consentStoreDocuments: boolean;
   consentContact: boolean;
 }
 
@@ -80,6 +88,11 @@ const DEFAULTS: FormState = {
   gasUtilityId: "",
   averageMonthlyBill: "",
   annualKwh: "",
+  annualTherms: "",
+  currentSupplierName: "",
+  currentSupplierKnown: false,
+  utilityBillUrls: [],
+  billExtractions: [],
   heatingType: "",
   coolingType: "",
   waterHeaterType: "",
@@ -91,6 +104,7 @@ const DEFAULTS: FormState = {
   householdSize: "",
   incomeRange: "",
   consentGeneratePlan: false,
+  consentStoreDocuments: false,
   consentContact: false,
 };
 
@@ -224,6 +238,10 @@ function IntakeForm() {
   const [stepIndex, setStepIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [billUploadConsent, setBillUploadConsent] = useState(false);
+  const [billUploadMessage, setBillUploadMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload, isUploading } = useUploadThing("utilityBillUploader");
 
   useEffect(() => {
     const zip = sp.get("zip");
@@ -257,6 +275,115 @@ function IntakeForm() {
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  function applyBillExtraction(extraction: UtilityBillExtraction) {
+    setForm((prev) => {
+      const allExtractions = [...prev.billExtractions, extraction];
+      const monthlyTotal = allExtractions.reduce(
+        (sum, bill) => sum + (bill.estimatedMonthlyCost ?? 0),
+        0,
+      );
+      const address = extraction.serviceAddress
+        ? [extraction.serviceAddress, extraction.city, extraction.state, extraction.zip]
+            .filter(Boolean)
+            .join(", ")
+        : prev.address;
+
+      return {
+        ...prev,
+        address: prev.address || address,
+        zip: extraction.zip ?? prev.zip,
+        electricUtilityId:
+          extraction.utilityType === "electric" && extraction.normalizedUtilityId
+            ? extraction.normalizedUtilityId
+            : prev.electricUtilityId,
+        gasUtilityId:
+          extraction.utilityType === "gas" && extraction.normalizedUtilityId
+            ? extraction.normalizedUtilityId
+            : prev.gasUtilityId,
+        annualKwh:
+          extraction.annualizedKwh && extraction.annualizedKwh > 0
+            ? extraction.annualizedKwh
+            : prev.annualKwh,
+        annualTherms:
+          extraction.annualizedTherms && extraction.annualizedTherms > 0
+            ? extraction.annualizedTherms
+            : prev.annualTherms,
+        averageMonthlyBill:
+          monthlyTotal > 0 ? monthlyTotal : prev.averageMonthlyBill,
+        currentSupplierName: extraction.supplierName ?? prev.currentSupplierName,
+        currentSupplierKnown: Boolean(extraction.supplierName) || prev.currentSupplierKnown,
+        utilityBillUrls: extraction.fileUrl
+          ? Array.from(new Set([...prev.utilityBillUrls, extraction.fileUrl]))
+          : prev.utilityBillUrls,
+        billExtractions: allExtractions,
+        consentStoreDocuments: true,
+      };
+    });
+  }
+
+  async function handleBillFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    if (!billUploadConsent) {
+      setBillUploadMessage("Please confirm consent before uploading a utility bill.");
+      return;
+    }
+
+    setBillUploadMessage("Uploading and reading your bill...");
+    setError(null);
+
+    try {
+      const uploaded = await startUpload(Array.from(files));
+      if (!uploaded || uploaded.length === 0) {
+        setBillUploadMessage("No files were uploaded. Please try again.");
+        return;
+      }
+
+      let parsedCount = 0;
+      for (const item of uploaded) {
+        const fileData = item as typeof item & {
+          url?: string;
+          ufsUrl?: string;
+          appUrl?: string;
+          serverData?: { url?: string; name?: string };
+        };
+        const fileUrl =
+          fileData.serverData?.url ?? fileData.url ?? fileData.ufsUrl ?? fileData.appUrl;
+        if (!fileUrl) continue;
+
+        const parseRes = await fetch("/api/bills/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileUrl,
+            fileName: fileData.serverData?.name ?? fileData.name,
+          }),
+        });
+        const parsed = await parseRes.json();
+        if (!parseRes.ok) {
+          setForm((prev) => ({
+            ...prev,
+            utilityBillUrls: Array.from(new Set([...prev.utilityBillUrls, fileUrl])),
+            consentStoreDocuments: true,
+          }));
+          setBillUploadMessage(parsed?.error ?? "Bill stored, but parsing failed.");
+          continue;
+        }
+        applyBillExtraction(parsed.extraction as UtilityBillExtraction);
+        parsedCount++;
+      }
+
+      if (parsedCount > 0) {
+        setBillUploadMessage(
+          `${parsedCount} bill${parsedCount === 1 ? "" : "s"} parsed. Review the extracted fields below.`,
+        );
+      }
+    } catch (err) {
+      setBillUploadMessage(err instanceof Error ? err.message : "Bill upload failed.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   const stepBlockers = getStepBlockers(activeStep.id, form);
   const finalBlockers = STEPS.flatMap((step) => getStepBlockers(step.id, form));
@@ -307,7 +434,7 @@ function IntakeForm() {
         hvacAge: typeof form.hvacAge === "number" ? form.hvacAge : undefined,
         hasGas: form.heatingType === "gas_furnace" || form.waterHeaterType === "gas_tank",
         annualKwh: typeof form.annualKwh === "number" ? form.annualKwh : undefined,
-        annualTherms: undefined,
+        annualTherms: typeof form.annualTherms === "number" ? form.annualTherms : undefined,
         householdIncome: undefined,
         amiBracket: "unknown" as const,
         hasExistingSolar: false,
@@ -315,7 +442,7 @@ function IntakeForm() {
         roofAge: undefined,
         notes: form.insulationConcerns || undefined,
         photoUrls: [],
-        utilityBillUrls: [],
+        utilityBillUrls: form.utilityBillUrls,
         intake_v2: {
           address: form.address || null,
           city,
@@ -323,8 +450,8 @@ function IntakeForm() {
           home_type: form.homeType,
           ownership_status: form.ownership,
           occupants,
-          current_supplier_known: false,
-          current_supplier_name: null,
+          current_supplier_known: form.currentSupplierKnown,
+          current_supplier_name: form.currentSupplierName || null,
           average_monthly_bill:
             typeof form.averageMonthlyBill === "number" ? form.averageMonthlyBill : null,
           heating_type: form.heatingType || null,
@@ -340,8 +467,9 @@ function IntakeForm() {
           income_range: form.incomeRange || null,
           assistance_programs: [],
           consent_generate_plan: form.consentGeneratePlan,
-          consent_store_documents: false,
+          consent_store_documents: form.consentStoreDocuments,
           consent_contact: form.consentContact,
+          bill_extractions: form.billExtractions.map(sanitizeBillExtractionForStorage),
           submitted_at: new Date().toISOString(),
         },
       };
@@ -376,9 +504,9 @@ function IntakeForm() {
         averageMonthlyBill:
           typeof form.averageMonthlyBill === "number" ? form.averageMonthlyBill : null,
         annualKwh: typeof form.annualKwh === "number" ? form.annualKwh : null,
-        annualTherms: null,
-        currentSupplierKnown: false,
-        currentSupplierName: null,
+        annualTherms: typeof form.annualTherms === "number" ? form.annualTherms : null,
+        currentSupplierKnown: form.currentSupplierKnown,
+        currentSupplierName: form.currentSupplierName || null,
         heatingType: form.heatingType || null,
         coolingType: form.coolingType || null,
         waterHeaterType: form.waterHeaterType || null,
@@ -671,14 +799,73 @@ function IntakeForm() {
                     </Field>
                   </div>
 
+                  {form.annualTherms && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                      Extracted gas usage:{" "}
+                      <span className="font-semibold text-gray-950">
+                        {form.annualTherms.toLocaleString()} annualized therms
+                      </span>
+                    </div>
+                  )}
+
                   <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
-                    <p className="text-sm font-bold text-blue-950">
-                      Bill upload can come later
-                    </p>
-                    <p className="mt-1 text-sm text-blue-800">
-                      The first plan works from ZIP, utility, and a bill estimate. A
-                      future upload will tighten the range and extract supplier details.
-                    </p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-blue-950">
+                          Or upload a utility bill to prefill this step
+                        </p>
+                        <p className="mt-1 text-sm text-blue-800">
+                          We can read Pepco and Washington Gas PDFs, store the document,
+                          and use the extracted data to improve your plan. Manual entry
+                          still works if parsing misses anything.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isUploading || !billUploadConsent}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isUploading ? "Uploading..." : "Upload bill PDF"}
+                      </button>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => handleBillFiles(event.target.files)}
+                    />
+
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-blue-200 bg-white/70 p-4 text-sm text-blue-950">
+                      <input
+                        type="checkbox"
+                        checked={billUploadConsent}
+                        onChange={(event) => setBillUploadConsent(event.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>
+                        I authorize GreenBroker to store and analyze this utility bill
+                        to prepare my energy plan. I understand bills may include my
+                        name, address, account number, usage, and charges.
+                      </span>
+                    </label>
+
+                    {billUploadMessage && (
+                      <p className="mt-3 rounded-2xl border border-blue-200 bg-white/80 px-4 py-3 text-sm text-blue-900">
+                        {billUploadMessage}
+                      </p>
+                    )}
+
+                    {form.billExtractions.length > 0 && (
+                      <div className="mt-4 grid gap-3">
+                        {form.billExtractions.map((bill, index) => (
+                          <BillExtractionCard key={`${bill.fileUrl ?? bill.fileName}-${index}`} bill={bill} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -857,7 +1044,13 @@ function IntakeForm() {
                     <SummaryCard
                       label="Utility"
                       value={electricUtility?.name ?? "Electric utility missing"}
-                      detail={gasUtility ? `Gas: ${gasUtility.name}` : "Gas utility optional"}
+                      detail={[
+                        gasUtility ? `Gas: ${gasUtility.name}` : "Gas utility optional",
+                        form.billExtractions.length > 0 &&
+                          `${form.billExtractions.length} bill${form.billExtractions.length === 1 ? "" : "s"} uploaded`,
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
                     />
                     <SummaryCard
                       label="Systems"
@@ -1100,6 +1293,79 @@ function CheckRow({
       />
       <span className="leading-snug text-gray-700">{label}</span>
     </label>
+  );
+}
+
+function maskAccount(accountNumber: string | null) {
+  if (!accountNumber) return "Not found";
+  const digits = accountNumber.replace(/\D/g, "");
+  if (digits.length <= 4) return "••••";
+  return `•••• ${digits.slice(-4)}`;
+}
+
+function sanitizeBillExtractionForStorage(bill: UtilityBillExtraction) {
+  const { rawText: _rawText, accountNumber, ...safeBill } = bill;
+  return {
+    ...safeBill,
+    accountNumber: accountNumber ? maskAccount(accountNumber) : null,
+  };
+}
+
+function BillExtractionCard({ bill }: { bill: UtilityBillExtraction }) {
+  const usage =
+    bill.utilityType === "gas"
+      ? bill.totalTherms
+        ? `${bill.totalTherms.toLocaleString()} therms`
+        : "Gas usage not found"
+      : bill.totalKwh
+        ? `${bill.totalKwh.toLocaleString()} kWh`
+        : "Electric usage not found";
+
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-white p-4 text-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-bold text-gray-950">
+            {bill.provider === "pepco"
+              ? "Pepco electric bill"
+              : bill.provider === "washington_gas"
+                ? "Washington Gas bill"
+                : "Utility bill"}
+          </p>
+          <p className="mt-1 text-gray-500">
+            {bill.serviceAddress ?? "Address not found"}{" "}
+            {bill.zip ? `(${bill.zip})` : ""}
+          </p>
+        </div>
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+          {bill.confidence}% confidence
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-3">
+        <div>
+          <span className="block font-semibold text-gray-400">Usage</span>
+          {usage}
+        </div>
+        <div>
+          <span className="block font-semibold text-gray-400">Current charges</span>
+          {bill.currentCharges ? `$${bill.currentCharges.toFixed(2)}` : "Not found"}
+        </div>
+        <div>
+          <span className="block font-semibold text-gray-400">Account</span>
+          {maskAccount(bill.accountNumber)}
+        </div>
+      </div>
+
+      {bill.priceToCompareCentsPerKwh && (
+        <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
+          Price to Compare: {bill.priceToCompareCentsPerKwh.toFixed(2)} cents/kWh
+        </p>
+      )}
+      {bill.warnings.length > 0 && (
+        <p className="mt-3 text-xs text-amber-700">{bill.warnings.join(" ")}</p>
+      )}
+    </div>
   );
 }
 

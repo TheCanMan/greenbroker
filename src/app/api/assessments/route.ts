@@ -48,6 +48,25 @@ function stringArrayValue(value: unknown): string[] {
     : [];
 }
 
+function numberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function dateOrNull(value: unknown): string | null {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T00:00:00.000Z`
+    : null;
+}
+
+function billExtractionsValue(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item),
+      )
+    : [];
+}
+
 function heatingTypeFromAssessmentRow(
   row: Record<string, unknown>,
   intake: Record<string, unknown>,
@@ -222,8 +241,47 @@ async function persistResidentialMarketplaceModels({
       await client.from("utility_accounts" as never).insert(utilityRows as never);
     }
 
-    const electricAccount = utilityRows[0] as { id?: string } | undefined;
-    if (electricAccount?.id && (data.annualKwh || snapshot.averageMonthlyBill)) {
+    const typedUtilityRows = utilityRows as Array<{ id?: string; utility_type?: string }>;
+    const electricAccount = typedUtilityRows.find((row) => row.utility_type === "electric");
+    const gasAccount = typedUtilityRows.find((row) => row.utility_type === "gas");
+    const billExtractions = billExtractionsValue(intake.bill_extractions);
+
+    if (billExtractions.length > 0) {
+      const billRows = billExtractions.map((bill) => {
+        const utilityType = stringValue(bill.utilityType);
+        const accountId =
+          utilityType === "gas" ? gasAccount?.id : electricAccount?.id;
+
+        return {
+          id: crypto.randomUUID(),
+          utility_account_id: accountId ?? null,
+          bill_url: stringValue(bill.fileUrl),
+          period_start: dateOrNull(bill.billingPeriodStart),
+          period_end: dateOrNull(bill.billingPeriodEnd),
+          kwh: numberOrNull(bill.totalKwh) ?? numberOrNull(bill.annualizedKwh),
+          therms: numberOrNull(bill.totalTherms) ?? numberOrNull(bill.annualizedTherms),
+          cost_usd: numberOrNull(bill.currentCharges) ?? numberOrNull(bill.totalAmountDue),
+          parsed_json: {
+            source: "bill_upload",
+            parser_version: stringValue(bill.parserVersion),
+            confidence: numberOrNull(bill.confidence),
+            provider: stringValue(bill.provider),
+            utility_type: utilityType,
+            service_address: stringValue(bill.serviceAddress),
+            zip: stringValue(bill.zip),
+            account_number_masked: stringValue(bill.accountNumber)?.replace(/\d(?=\d{4})/g, "•"),
+            rate_class: stringValue(bill.rateClass),
+            meter_number: stringValue(bill.meterNumber),
+            price_to_compare_cents_per_kwh: numberOrNull(bill.priceToCompareCentsPerKwh),
+            gas_supply_rate_per_therm: numberOrNull(bill.gasSupplyRatePerTherm),
+            estimated_monthly_cost: numberOrNull(bill.estimatedMonthlyCost),
+            warnings: Array.isArray(bill.warnings) ? bill.warnings : [],
+          },
+          created_at: now,
+        };
+      });
+      await client.from("utility_bills" as never).insert(billRows as never);
+    } else if (electricAccount?.id && (data.annualKwh || snapshot.averageMonthlyBill)) {
       await client.from("utility_bills" as never).insert({
         id: crypto.randomUUID(),
         utility_account_id: electricAccount.id,
